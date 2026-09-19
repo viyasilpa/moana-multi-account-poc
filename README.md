@@ -10,7 +10,16 @@ Overall: BLOCKED / NOT PASSED. No production app has been created. The results b
 
 ## GitHub follow-up — 19 September 2026
 
-The owner created the test repository and authorized the GitHub App for selected repositories. Read-only checks now confirm the installation and access to `viyasilpa/moana-multi-account-poc`. The repository is currently public. This README is the first authorized file-write test; successful creation and read-back must be verified separately. No credentials or real accounting data are included. This test does not establish Supabase migration, UI interaction, deployment, or production readiness.
+The owner created the test repository and authorized the GitHub App for selected repositories. Access and file creation are verified: README commit `dac2e8f2cd7db5cb52af3b05ba6af073f75997ab` was created and read back successfully. The repository is currently public. No credentials or real accounting data are included. This test does not establish Supabase migration, UI interaction, deployment, or production readiness.
+
+## Follow-up test checkpoint — 19 September 2026
+
+- Repeated `npm run build`: PASS (TypeScript and Vite).
+- Local server reported ready on 127.0.0.1:5173, but a separate HTTP check failed with curl code 7.
+- Cloud Browser navigation to that local address returned `net::ERR_BLOCKED_BY_CLIENT`. Local UI tests remain BLOCKED; no tunnel or security bypass attempted.
+- Provider discovery reports Supabase and Vercel plugins not installed in this conversation. Owner account registration alone does not grant this assistant access. Database and deployment tests remain NOT RUN, pending normal connector authorization.
+- Existing mock source and lockfile are being checkpointed to this repository, not promoted to production. Known prototype limitations below remain unresolved and untested.
+- Next: connect Supabase and Vercel for the named POC only. Verify their exposed tools and project scope. A deployed UI test would be reported separately from the still-unproven local UI loop.
 
 ## Initial local test results
 
@@ -36,6 +45,6 @@ Known untested prototype limitations: data exists only in React memory; validati
 
 Developer commands: npm ci; npm run build; npm run dev. These instructions are for the developer, not technical homework for Moana. node_modules, dist, credentials and environment files are ignored. Lockfile is the reproducible dependency snapshot; avoid npm update until intentionally reviewing versions.
 
-Next user action: authorize the GitHub/Supabase/Vercel integrations through their normal account flow, scoped to a test repository/project. Then the agent checks actual exposed write capabilities before promising autonomous migrations or deployment. Separately resolve the blocked browser-local route via a supported development environment; no tunnel or alternative browser control is authorized as a workaround. Hosting-only browser testing would prove a different, deployed workflow and must be labelled accordingly.
+Next user action: authorize Supabase and Vercel integrations through their normal account flow, scoped to the test project. GitHub is already connected. The agent must check actual exposed write capabilities before promising autonomous migrations or deployment. Separately resolve the blocked browser-local route via a supported development environment; no tunnel or alternative browser control is authorized as a workaround. Hosting-only browser testing would prove a different, deployed workflow and must be labelled accordingly.
 
 Production remains blocked until the specification and full Technical POC pass, unless the owner explicitly changes that gate. Account ownership, billing/terms decisions and initial permission consent remain owner actions. Code, tests, migration preparation and debugging remain developer work.
