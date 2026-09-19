@@ -1,0 +1,3 @@
+ChatGPT GitHub write probe.
+Purpose: verify commit + branch update from ChatGPT connector.
+Safe test file; no application logic changed.
