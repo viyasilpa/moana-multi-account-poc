@@ -1,5 +1,41 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Current release status — 2026-09-20
+
+Stage 5 implementation and the tested Mac Safari + Android acceptance scope
+are complete and promoted to the original application. This section supersedes
+historical pending/promotion statements below; it does not certify untested devices.
+
+- PR #1 merged into main as `cc2fc68e09948d4b0a9e6600c4216a03ccb6582e`.
+- Production deployment `dpl_6TaL1KrDkgUEZ6qFSoQfPN6kcYya` is READY.
+  App: https://moana-multi-account-poc.vercel.app/
+- Applied committed migration 008 as `accounting_command_constraint_checks`
+  to the original project. The only function-body changes are the two PT409
+  mappings and the posting command's balance-constraint drain. Existing owner
+  checks and execution grants are unchanged.
+- All 11 accounting tables have identical before/after row counts and ordered
+  row fingerprints. No real transaction, opening, or test data was written.
+  Start date and opening_finalized_at remain null.
+- Exact release-tree verification passed: 17 mounted UI tests, decimal/CSV checks,
+  79 engine checks, 42 stage-5 checks, 9 unopened checks, 2 acceptance integration
+  scenarios, hosted synthetic snapshot/file restore comparison, typecheck/build.
+- Prior hosted synthetic HTTP evidence covers Storage permissions, exact file
+  bytes, signed-link expiry, overlapping idempotent requests and stale edits.
+  Owner-observed Safari native save/reopen and Mac/Android conflict/reload
+  acceptance are recorded below. No Cloud Browser dependency remains for these.
+- Security advisor is unchanged: only the existing leaked-password-protection
+  warning remains. Remediation:
+  https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+Verification limits: physical iPad and manually operating every authenticated
+attachment control on a mobile device are not certified. Mounted attachment UI
+checks and hosted Storage API checks are separate evidence. Production smoke
+verification is read-only HTTP/assets plus deployment/database checks, not a
+new authenticated write test using real data. Operational start date and actual
+opening balances remain a separate owner decision, not a test prerequisite.
+
+## Historical evidence (read newest status above first)
+
 ## Owner-observed Mac + Android stale-edit acceptance — 2026-09-20
 
 PASS for the tested two-device scenario on deployment
