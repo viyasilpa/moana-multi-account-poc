@@ -1,5 +1,33 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## 2026-09-20: offline path without opening a ledger
+
+Latest main was verified as `c4317f523325cc642536959ccfd8ff0ba77c19aa`.
+`npm run test:unopened` passes nine checks using synthetic masters in disposable
+PGlite only. It never submits an opening command, loads real data, or contacts a
+hosted service. It saves a backup to a temporary disk file, reads it back,
+restores into a fresh database with all table equality checks, rejects a modified
+file, verifies owner-only export, rejects posting before opening and attachment
+reservation without a posted transaction, and verifies source tables unchanged.
+Temporary files are removed after the run. Start date and opening remain null.
+
+This is disk I/O and isolated restore evidence, NOT browser save/reopen or
+hosted attachment acceptance. Existing `npm test` uses synthetic opening
+fixtures; it was intentionally not rerun under the current no-opening constraint.
+
+Cloud Browser is not inherently required for acceptance. Another real browser
+or test runner can provide browser evidence. In this workspace the alternate
+browser CLI, Docker and PostgreSQL executables were unavailable; installing
+PostgreSQL through apt failed due to unavailable package metadata and inability
+to switch the package-fetch process user. No elevated retry was attempted.
+
+Positive attachment tests require a posted transaction. With the no-opening
+constraint and an unopened ledger, those tests cannot be reached through normal
+application commands. Do not silently initialize the ledger, bypass constraints,
+or relabel mock transport as hosted evidence. A separately scoped synthetic
+fixture with posted transactions is a prerequisite for that acceptance gate.
+Multi-session PostgreSQL and physical Safari/iPad acceptance remain unverified.
+
 ## Follow-up: file workflow and retention
 
 Owner-supplied Safari screenshot confirms a downloaded JSON was selected and
