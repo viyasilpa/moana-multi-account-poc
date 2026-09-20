@@ -70,7 +70,11 @@ function Opening({catalog,send,editing,done}:{catalog:Catalog;send:Send;editing?
   if(['bank','cash'].includes(a.kind))return true
   if(a.kind!=='party')return false
   const p=catalog.parties.find(p=>p.id===a.party_id)
-  return p?.kind!=='related'||a.entity_id<(p.related_entity_id||'')
+  if(p?.kind!=='related')return true
+  const mirror=catalog.accounts.find(x=>x.entity_id===p.related_entity_id&&catalog.parties.find(q=>q.id===x.party_id)?.related_entity_id===a.entity_id)
+  if(editing?.input.balances?.some(b=>b.account_id===a.id))return true
+  if(editing?.input.balances?.some(b=>b.account_id===mirror?.id))return false
+  return catalog.entities.findIndex(e=>e.id===a.entity_id)<catalog.entities.findIndex(e=>e.id===p.related_entity_id)
  })
  async function save(e:React.FormEvent) {
   e.preventDefault();setNotice('')
@@ -82,7 +86,7 @@ function Opening({catalog,send,editing,done}:{catalog:Catalog;send:Send;editing?
   } catch(error){setNotice(errorText(error))}
  }
  return <form className="card" onSubmit={save}><h2>{editing?'แก้ไขยอดยกมา':'เริ่มต้นบัญชี — ตั้งยอดยกมา'}</h2><p>กรอกยอดก่อนเริ่มวันบัญชี ช่องว่างถือเป็นศูนย์ · ยังไม่ทราบยอด ให้เว้นการบันทึกไว้ก่อน</p>
-  <label>วันเริ่มบัญชี<input type="date" required max={today()} readOnly={!!editing} value={date} onChange={e=>setDate(e.target.value)}/></label>
+  <label>วันเริ่มบัญชี<input type="date" required max={today()} readOnly={!!editing} value={date} onInput={e=>setDate(e.currentTarget.value)} onChange={e=>setDate(e.target.value)}/></label>
   <p>ยอดบุคคล: บวก = เขาค้างเรา / ลบ = เราค้างเขา คู่ระหว่างกิจการกรอกครั้งเดียว ระบบลงฝั่งตรงข้ามให้อัตโนมัติ</p>
   {catalog.entities.map(entity=><details key={entity.id}><summary>{entity.name}</summary><div className="field-grid">{accounts.filter(a=>a.entity_id===entity.id).map(a=><label key={a.id}>{a.name}<input inputMode="decimal" placeholder="0.00" value={balances[a.id]||''} onChange={e=>setBalances(b=>({...b,[a.id]:e.target.value}))}/></label>)}</div></details>)}
   {editing&&<label>เหตุผลที่แก้ไข<input required maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>}
@@ -108,7 +112,7 @@ function EntryForm({catalog,editing,refund,send,done}:{catalog:Catalog;editing:R
  }
  return <form className="card" onSubmit={submit}><h2>{editing?'แก้ไขรายการ':refund?'คืนเงินรายการเดิม':'ลงรายการ'}</h2>
   <div className="field-grid"><label>ประเภทรายการ<select disabled={!!editing||!!refund} value={entry.kind} onChange={e=>{setEntry({...blank(),kind:e.target.value});setConfirm(false)}}>{Object.entries(labels).filter(([k])=>k!=='opening'&&(k!=='refund'||isRefund)).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
-  <label>วันที่<input type="date" required min={catalog.settings.start_date||undefined} max={today()} value={entry.date} onChange={e=>set('date',e.target.value)}/></label></div>
+  <label>วันที่<input type="date" required min={catalog.settings.start_date||undefined} max={today()} value={entry.date} onInput={e=>set('date',e.currentTarget.value)} onChange={e=>set('date',e.target.value)}/></label></div>
   {!isRefund&&<>
    {entry.kind==='expense'&&<label>แหล่งเงิน<select value={entry.funding} onChange={e=>{setEntry(v=>{const n={...v,funding:e.target.value};delete n.money_account_id;return n});setConfirm(false)}}><option value="money">บัญชีธนาคาร / เงินสด</option><option value="pp">PP จ่ายแทนกิจการ</option></select></label>}
    {entry.funding!=='pp'&&<label>บัญชีที่{['income','party_receipt'].includes(entry.kind)?'รับเงิน':'จ่ายเงิน'}<select required value={entry.money_account_id||''} onChange={e=>set('money_account_id',e.target.value)}><option value="">เลือกบัญชีและเจ้าของเงิน</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}</select></label>}
@@ -148,7 +152,7 @@ function Detail({id,catalog,api}:{id:string;catalog:Catalog;api:Api}) {
 }
 
 function Filters({catalog,from,to,entity,change}:{catalog:Catalog;from:string;to:string;entity:string;change:(f:string,t:string,e:string)=>void}) {
- return <div className="field-grid"><label>ตั้งแต่<input type="date" required min={catalog.settings.start_date||undefined} max={to} value={from} onChange={e=>change(e.target.value,to,entity)}/></label><label>ถึง<input type="date" required min={from} max={today()} value={to} onChange={e=>change(from,e.target.value,entity)}/></label><label>กิจการ<select value={entity} onChange={e=>change(from,to,e.target.value)}><option value="">ทุกกิจการ</option>{catalog.entities.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label></div>
+ return <div className="field-grid"><label>ตั้งแต่<input type="date" required min={catalog.settings.start_date||undefined} max={to} value={from} onInput={e=>change(e.currentTarget.value,to,entity)} onChange={e=>change(e.target.value,to,entity)}/></label><label>ถึง<input type="date" required min={from} max={today()} value={to} onInput={e=>change(from,e.currentTarget.value,entity)} onChange={e=>change(from,e.target.value,entity)}/></label><label>กิจการ<select value={entity} onChange={e=>change(from,to,e.target.value)}><option value="">ทุกกิจการ</option>{catalog.entities.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label></div>
 }
 type Report={accounts:{account_id:string;entity_id:string;kind:string;opening:string;debit:string;credit:string;closing:string}[];pnl:{entity_id:string;income:string;expense:string;net:string}[];consolidated:{income:string;expense:string;net:string}}
 function Reports({catalog,api,status}:{catalog:Catalog;api:Api;status:boolean}) {
