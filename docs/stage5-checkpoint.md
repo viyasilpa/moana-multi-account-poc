@@ -1,5 +1,24 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Owner-observed full hosted backup on Safari — 2026-09-20
+
+Owner returned acceptance v2 at 2026-09-20T05:44:59.468Z (12:44 Thailand),
+Safari 26.5 on macOS, from the hosted-fixture acceptance page deployed from
+`f10f24aaf46ed7e69142998c936d622f86946ac6`.
+
+All five checks passed: synthetic hosted snapshot with 2 attachment files,
+isolated restore matching every table, modified-envelope rejection, native
+JSON save/reselect and native PNG save/reselect. This closes the desktop Safari
+full hosted-fixture save/reopen gate. It is owner-observed evidence, not an
+agent-controlled browser run or an authenticated main-app UI test.
+
+Current remaining gates: physical iPad controls and actual two-device UI
+observation; promotion of tested patch 008 and frontend to the original app.
+Backend concurrent-client HTTP checks already passed separately. Actual
+operational opening remains unset and is not required to continue development.
+Historical pending statements below are superseded by this and the hosted
+acceptance section.
+
 ## 2026-09-20: hosted synthetic acceptance and two real defects
 
 Owner explicitly approved synthetic opening in a separate test environment.
@@ -47,8 +66,6 @@ the test project's leaked-password-protection warning remains.
 
 ### Still open
 
-- Owner Safari save/reopen of the full hosted fixture: use
-  `/acceptance.html?suite=hosted`; the earlier unopened file check is not this.
 - Physical iPad controls and actual two-device UI observation. The backend race
   evidence is overlapping HTTP calls from two signed-in clients, not two devices.
 - Patch 008 is tested in the sandbox and stored in this branch ONLY; it has NOT
