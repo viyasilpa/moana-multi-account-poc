@@ -23,13 +23,41 @@ No real opening balances/start date are assumed. Recovery route is in
 - Protected catalog, GL, account balances and entity/consolidated P&L RPCs.
 - Named external parties plus rename/archive operations with audit.
 
-## Verification at pre-apply checkpoint
+## Verification
 
 Local PGlite executes the exact SQL with synthetic Auth roles and owner fixture.
 70 integration checks passed, plus frontend TypeScript/Vite build passed.
-Remote migration/test/advisor results will be recorded after execution, not inferred
-from local tests. Actual simultaneous multi-session tests and browser use of these
-new accounting RPCs are not claimed here.
+The same 70-check suite passed on Supabase PostgreSQL 17.6, including deferred
+constraint flushing, owner/non-owner/anonymous role checks and exact decimal
+known-answer cases. The suite used transaction-local Auth claim simulation, not
+real second-user sign-in. All synthetic fixtures were rolled back. Actual
+simultaneous multi-session stress tests and browser use of these new accounting
+RPCs are not claimed here; they remain release/integration checks.
+
+Recorded migrations:
+
+- 20260920015457 accounting_engine_core
+- 20260920015509 accounting_engine_commands
+- 20260920015520 accounting_engine_masters
+
+Pre-apply source/test checkpoint: `be4fc7e6ff24942814bce037ff11093540a99416`.
+After rollback: zero accounting entities, transactions and journal lines; one
+existing POC row and owner binding remained. The approved private six-entity
+manifest was then configured through the owner-checked admin function and
+compared field-by-field with the specification: 110 initial accounts including
+30 reciprocal entity accounts and six PP accounts. No start date or balances
+were set. One additional owner-requested named external party was added through
+the audited master command; its identity is deliberately not published here.
+Other counterparties remain individually named, not one pooled receivable.
+
+Security advisor found no new engine warnings. The existing owner-accepted Auth
+leaked-password-protection warning remains unchanged. Reference:
+https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+Stage 3 backend checkpoint is complete: schema, controlled posting, protected
+read APIs, private masters and DB regression tests. Source rollback alone does
+not reverse remote migrations. Use the fail-closed recovery instructions and
+fix forward; never drop a nonempty accounting history.
 
 ## Remaining product work
 

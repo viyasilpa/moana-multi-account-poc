@@ -8,7 +8,8 @@ attachment backup/restore and an observed UI defect/fix/retest are recorded in
 `docs/api-acceptance-checkpoint.md`. The earlier historical notes below do not
 describe current connector or POC status.
 
-Stage 3 accounting engine is under implementation in `db/accounting/`.
+Stage 3 accounting-engine backend checkpoint is implemented in `db/accounting/`:
+70 integration checks passed locally and on Supabase (fixtures rolled back).
 See `docs/accounting-checkpoint.md` for exact verification and remaining scope.
 The deployed website still shows the POC UI, not the accounting application.
 
