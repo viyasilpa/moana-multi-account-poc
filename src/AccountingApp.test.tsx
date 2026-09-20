@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AccountingApp } from './AccountingApp'
+import {LedgerBackup,MasterSettings} from './LedgerSafety'
+import {tableNames,unpackBackup} from './backup-format'
+import type {Snapshot} from './backup-format'
 import type { Api, Catalog, Command } from './accounting'
 vi.mock('./supabase',()=>({supabase:{rpc:vi.fn(()=>{throw new Error('Live RPC forbidden in component tests')})}}))
 
@@ -36,6 +39,37 @@ async function fillExpense(user:ReturnType<typeof userEvent.setup>) {
 }
 beforeEach(()=>{sessionStorage.clear();vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:synthetic-export');vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{})})
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals()})
+
+describe('Stage 5 settings and backup controls',()=>{
+ it('renames and archives the same account ID, never requests deletion',async()=>{
+  const user=userEvent.setup(),send=vi.fn(async()=>true)
+  render(<MasterSettings catalog={catalog} send={send}/>)
+  await user.click(screen.getByText('เปลี่ยนชื่อ / ปิดใช้งานบัญชีและบุคคล'))
+  await user.selectOptions(screen.getByRole('combobox',{name:'บัญชีหรือบุคคล'}),'bank')
+  await user.clear(screen.getByRole('textbox',{name:'ชื่อที่แสดง'}))
+  await user.type(screen.getByRole('textbox',{name:'ชื่อที่แสดง'}),'Renamed demo bank')
+  await user.click(screen.getByRole('checkbox',{name:'เปิดให้เลือกในรายการใหม่'}))
+  await user.click(screen.getByRole('button',{name:'บันทึกชื่อ / สถานะ'}))
+  expect(send).toHaveBeenCalledWith({action:'update',target:'account',id:'bank',name:'Renamed demo bank',active:false},'accounting_master')
+ })
+ it('creates a complete native JSON download and removes stale downloads on failure',async()=>{
+  const user=userEvent.setup();let blob:Blob|undefined,fail=false
+  vi.spyOn(URL,'createObjectURL').mockImplementation(b=>{blob=b as Blob;return 'blob:backup'})
+  const tables=Object.fromEntries(tableNames.map(t=>[t,[]])) as unknown as Snapshot['tables']
+  tables.settings=[{owner_id:'synthetic'}];tables.entities=Array.from({length:6},(_,i)=>({id:String(i)}))
+  const snapshot:Snapshot={format:'moana-ledger',version:1,exported_at:'2026-01-01T00:00:00Z',tables,counts:Object.fromEntries(tableNames.map(t=>[t,tables[t].length]))}
+  const api:Api=async<T,>(name:string)=>{expect(name).toBe('accounting_backup');if(fail)throw new Error('Network unavailable');return snapshot as T}
+  render(<LedgerBackup api={api} userId="synthetic"/>)
+  await user.click(screen.getByRole('button',{name:'เตรียมสำรองครบชุด'}))
+  const link=await screen.findByRole('link',{name:'ดาวน์โหลด JSON สำรอง'})
+  expect(link.getAttribute('download')).toMatch(/^moana-backup-.*\.json$/)
+  const text=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsText(blob!)})
+  expect((await unpackBackup(text)).snapshot).toEqual(snapshot)
+  fail=true;await user.click(screen.getByRole('button',{name:'เตรียมสำรองครบชุด'}))
+  await screen.findByText('Network unavailable');expect(screen.queryByRole('link',{name:'ดาวน์โหลด JSON สำรอง'})).toBeNull()
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:backup')
+ })
+})
 
 describe('Stage 4 interaction regression',()=>{
  it('keeps the draft on continue and discards only after explicit inline confirmation',async()=>{

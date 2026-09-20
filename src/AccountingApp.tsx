@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cents, decimal, errorText, labels, liveApi, money, today } from './accounting'
 import { csvText } from './ledger-format'
 import type { Api, Catalog, Command, Entry, Receipt, Row } from './accounting'
+import {LedgerBackup,MasterSettings,TransactionFiles} from './LedgerSafety'
 
 type Props={userId:string;api?:Api;demo?:boolean}
 type Send=(request:Omit<Command,'key'>,method?:string)=>Promise<boolean>
@@ -57,7 +58,7 @@ export function AccountingApp({userId,api=liveApi,demo=false}:Props) {
     {tab==='รายการ'&&<Activity key={version} catalog={catalog} api={api} send={send} notice={notice} edit={r=>{setNotice('');setEditing(r);setRefund(null);setTab('ลงรายการ')}} refund={r=>{setNotice('');setRefund(r);setEditing(null);setTab('ลงรายการ')}}/>}
     {(tab==='สถานะ'||tab==='รายงาน')&&<Reports key={`${tab}-${version}`} catalog={catalog} api={api} status={tab==='สถานะ'}/>}
    </>}
-   {tab==='ตั้งค่า'&&<section className="card"><h2>ลูกหนี้–เจ้าหนี้รายคน</h2><p>AR-others แยกชื่อแต่ละคน ไม่รวมเป็นยอดเดียว · เงินบวก = ลูกหนี้ / เงินลบ = เจ้าหนี้</p><ul>{catalog.parties.filter(p=>p.kind==='other'||p.kind==='pp').map(p=><li key={p.id}>{p.name}{!p.active?' (ปิดใช้งาน)':''}</li>)}</ul><AddParty send={send}/>{!isSetup&&<p>เริ่มบัญชี {catalog.settings.start_date} · แก้ยอดยกมาได้จากแท็บรายการ โดยเก็บประวัติทุกครั้ง</p>}</section>}
+   {tab==='ตั้งค่า'&&<><section className="card"><h2>ลูกหนี้–เจ้าหนี้รายคน</h2><p>AR-others แยกชื่อแต่ละคน ไม่รวมเป็นยอดเดียว · เงินบวก = ลูกหนี้ / เงินลบ = เจ้าหนี้</p><ul>{catalog.parties.filter(p=>p.kind==='other'||p.kind==='pp').map(p=><li key={p.id}>{p.name}{!p.active?' (ปิดใช้งาน)':''}</li>)}</ul><AddParty send={send}/><MasterSettings catalog={catalog} send={send}/>{!isSetup&&<p>เริ่มบัญชี {catalog.settings.start_date} · แก้ยอดยกมาได้จากแท็บรายการ โดยเก็บประวัติทุกครั้ง</p>}</section><LedgerBackup api={api} userId={userId}/></>}
   </fieldset>
   <nav className="bottom-tabs" aria-label="เมนูบัญชี">{['ลงรายการ','รายการ','สถานะ','รายงาน'].map(t=><button key={t} aria-current={tab===t?'page':undefined} className={tab===t?'':'secondary'} disabled={busy||!!pending} onClick={()=>navigate(t)}>{t}</button>)}</nav>
  </div>
@@ -153,7 +154,7 @@ type DetailData={revisions:{revision:number;date:string;reason:string;input:Entr
 function Detail({id,catalog,api}:{id:string;catalog:Catalog;api:Api}) {
  const [data,setData]=useState<DetailData|null>(null),[error,setError]=useState('')
  useEffect(()=>{let active=true;setData(null);api<DetailData>('accounting_detail',{p_id:id}).then(d=>{if(active)setData(d)}).catch(e=>{if(active)setError(errorText(e))});return()=>{active=false}},[id,api])
- return <div className="review"><h3>ประวัติและบัญชีแยกประเภท</h3>{!data?<p>{error||'กำลังโหลด…'}</p>:<>{data.revisions.map(r=><p key={r.revision}>ฉบับ {r.revision} · {r.date} · {r.input.description} {r.reason&&` · เหตุผล: ${r.reason}`}</p>)}<div className="table-scroll"><table><thead><tr><th>ฉบับ / วันที่</th><th>กิจการ / บัญชี</th><th>Dr</th><th>Cr</th></tr></thead><tbody>{data.lines.map((l,i)=><tr key={i}><td>{l.revision} · {l.date}<small>{l.role}</small></td><td>{catalog.entities.find(e=>e.id===l.entity_id)?.name}<small>{catalog.accounts.find(a=>a.id===l.account_id)?.name}</small></td><td>{money(l.debit)}</td><td>{money(l.credit)}</td></tr>)}</tbody></table></div></>}</div>
+ return <div className="review"><h3>ประวัติและบัญชีแยกประเภท</h3>{!data?<p>{error||'กำลังโหลด…'}</p>:<>{data.revisions.map(r=><p key={r.revision}>ฉบับ {r.revision} · {r.date} · {r.input.description} {r.reason&&` · เหตุผล: ${r.reason}`}</p>)}<div className="table-scroll"><table><thead><tr><th>ฉบับ / วันที่</th><th>กิจการ / บัญชี</th><th>Dr</th><th>Cr</th></tr></thead><tbody>{data.lines.map((l,i)=><tr key={i}><td>{l.revision} · {l.date}<small>{l.role}</small></td><td>{catalog.entities.find(e=>e.id===l.entity_id)?.name}<small>{catalog.accounts.find(a=>a.id===l.account_id)?.name}</small></td><td>{money(l.debit)}</td><td>{money(l.credit)}</td></tr>)}</tbody></table></div><TransactionFiles id={id} revision={Math.max(...data.revisions.map(r=>r.revision))} api={api}/></>}</div>
 }
 
 function Filters({catalog,from,to,entity,change}:{catalog:Catalog;from:string;to:string;entity:string;change:(f:string,t:string,e:string)=>void}) {

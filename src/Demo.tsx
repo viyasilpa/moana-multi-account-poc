@@ -4,6 +4,8 @@ import core from '../db/accounting/001_core.sql?raw'
 import commands from '../db/accounting/002_commands.sql?raw'
 import masters from '../db/accounting/003_masters.sql?raw'
 import reads from '../db/accounting/004_read_api.sql?raw'
+import documents from '../db/accounting/005_documents_backup.sql?raw'
+import {storageStub} from './restore-core'
 import { AccountingApp } from './AccountingApp'
 import type { Api } from './accounting'
 import { errorText } from './accounting'
@@ -19,12 +21,15 @@ async function createDemo():Promise<Api> {
  insert into public.app_owner select id from auth.users;
  grant usage on schema auth to authenticated; grant select on public.app_owner to authenticated;
  select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);`)
- for(const sql of [core,commands,masters,reads])await db.exec(sql)
+ await db.exec(storageStub)
+ for(const sql of [core,commands,masters,reads,documents])await db.exec(sql)
  const manifest={entities:Array.from({length:6},(_,i)=>({code:`D${i+1}`,name:`กิจการสาธิต ${i+1}`,accounts:[{code:'bank',name:'ธนาคารสาธิต',kind:'bank'},{code:'cash',name:'เงินสดสาธิต',kind:'cash'},{code:'income',name:'รายรับสาธิต',kind:'income'},{code:'expense',name:'ค่าใช้จ่ายสาธิต',kind:'expense'}]}))}
  await db.query('select accounting.configure($1::jsonb)',[JSON.stringify(manifest)])
  await db.exec('set role authenticated')
  const routes:Record<string,{sql:string;keys:string[]}>={
   accounting_catalog:{sql:'select public.accounting_catalog() result',keys:[]},
+  accounting_backup:{sql:'select public.accounting_backup() result',keys:[]},
+  accounting_attachment_list:{sql:'select public.accounting_attachment_list($1::uuid) result',keys:['p_id']},
   accounting_post:{sql:'select public.accounting_post($1::jsonb) result',keys:['p_request']},
   accounting_master:{sql:'select public.accounting_master($1::jsonb) result',keys:['p_request']},
   accounting_report:{sql:'select public.accounting_report($1::date,$2::date) result',keys:['p_from','p_to']},

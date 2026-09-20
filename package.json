@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "test:ui": "vitest run src/AccountingApp.test.tsx --environment jsdom",
-    "test": "npm run test:ui && node scripts/test-ledger-format.mjs && node scripts/test-accounting.mjs"
+    "test": "npm run test:ui && node scripts/test-ledger-format.mjs && node scripts/test-accounting.mjs && node scripts/test-stage5.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",

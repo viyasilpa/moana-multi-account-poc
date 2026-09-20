@@ -6,7 +6,7 @@ export type Account = {id:string;entity_id:string;name:string;kind:string;party_
 export type Catalog = {settings:{start_date:string|null};entities:{id:string;code:string;name:string;active:boolean}[];accounts:Account[];parties:{id:string;name:string;kind:string;related_entity_id:string|null;active:boolean}[]}
 export type Row = {id:string;kind:string;status:string;current_revision:number;effective_date:string;amount:string|null;input:Entry}
 export type Receipt = {transaction_id?:string;revision?:number;status?:string;warnings?:{account_id:string;balance:string}[]}
-export type Command = {key:string;action:string;entry?:Entry;transaction_id?:string;expected_revision?:number;reason?:string;target?:string;name?:string}
+export type Command = {key:string;action:string;entry?:Entry;transaction_id?:string;expected_revision?:number;reason?:string;target?:string;name?:string;id?:string;active?:boolean}
 export type Api = <T>(name:string,args?:Record<string,unknown>)=>Promise<T>
 export const liveApi:Api = async <T,>(name:string,args?:Record<string,unknown>):Promise<T> => {
   const {data,error}=await supabase.rpc(name,args); if(error) throw error; return data as T

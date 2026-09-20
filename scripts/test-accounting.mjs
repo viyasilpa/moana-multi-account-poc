@@ -1,5 +1,6 @@
 import { PGlite } from '@electric-sql/pglite'
 import { readFile } from 'node:fs/promises'
+import {storageStub} from '../src/restore-core.ts'
 
 const db = new PGlite()
 try {
@@ -15,7 +16,8 @@ try {
     grant usage on schema auth to authenticated;
     grant select on public.app_owner to authenticated;
   `)
-  for (const file of ['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql']) {
+  await db.exec(storageStub)
+  for (const file of ['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql']) {
     await db.exec(await readFile(new URL(`../db/accounting/${file}`,import.meta.url),'utf8'))
   }
   const results=await db.exec(await readFile(new URL('../db/accounting/test_engine.sql',import.meta.url),'utf8'))
