@@ -141,7 +141,7 @@ function Items({ userId }: { userId: string }) {
     if (pendingDelete) dialog.current?.showModal()
     else dialog.current?.close()
   }, [pendingDelete])
-  function reset() { setDescription(''); setAmount(''); setEditing(null) }
+  function reset() { setDescription(''); setAmount(''); setEditing(null); setNotice('') }
   async function save(event: React.FormEvent) {
     event.preventDefault()
     if (lock.current || !allowed) return
@@ -191,7 +191,7 @@ function Items({ userId }: { userId: string }) {
         <small>แสดงสูงสุด 200 รายการล่าสุด · รีเฟรชหน้าแล้วข้อมูลยังอยู่</small>
         {!items.length ? <p className="empty">ยังไม่มีรายการทดสอบ</p> : <ul>{items.map(item => <li key={item.id}>
           <span><strong>{item.description}</strong><small>{item.amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท</small></span>
-          <span className="row-actions"><button disabled={busy} className="secondary" onClick={() => { setEditing(item); setDescription(item.description); setAmount(String(item.amount)) }}>แก้ไข</button>
+          <span className="row-actions"><button disabled={busy} className="secondary" onClick={() => { setNotice(''); setEditing(item); setDescription(item.description); setAmount(String(item.amount)) }}>แก้ไข</button>
             <button disabled={busy} className="danger" onClick={() => setPendingDelete(item)}>ลบ</button></span>
         </li>)}</ul>}
       </section>
