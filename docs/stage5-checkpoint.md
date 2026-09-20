@@ -1,5 +1,27 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Owner-observed Mac + Android stale-edit acceptance — 2026-09-20
+
+PASS for the tested two-device scenario on deployment
+`cb4629b98943092cf2513b3bb9dfce4ab114883d`, using the isolated synthetic
+project only. Shared transaction prefix: `654b0569`.
+
+The initial 2.25/revision-2 screenshots established matching reads only: the
+owner clarified that Android had not submitted its edit. They are NOT counted
+as conflict evidence. In the repeated scenario both edit forms held revision 2.
+Mac submitted 4.25 and displayed revision 3. Android's 5.25 edit then displayed
+the stale-revision message requesting a reload (owner screenshot at 13:28).
+After choosing to leave without saving, the owner explicitly confirmed Android
+showed the same 4.25/revision 3 as Mac. This closes the observed stale-edit
+rejection and post-conflict navigation/reload scenario on Mac + Android.
+
+This is sequential submission from two stale forms, not simultaneous network
+arrival; overlapping HTTP races were verified separately. It does not establish
+physical iPad support or every mobile attachment control. The tested fixes remain
+on the test branch and have not been promoted to main/original database.
+No operational opening balances or real transaction data were used.
+
+
 ## Two-device UI prepared — 2026-09-20
 
 Owner has Mac Safari and Android; physical iPad remains untested. Dedicated
