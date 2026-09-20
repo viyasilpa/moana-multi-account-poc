@@ -15,12 +15,49 @@ function App() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const [recovery, setRecovery] = useState(() => new URLSearchParams(location.search).get('recovery') === '1')
+  const [forgot, setForgot] = useState(false)
+  const [confirmation, setConfirmation] = useState('')
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next); setReady(true); setPassword('')
+      if (_event === 'PASSWORD_RECOVERY') setRecovery(true)
     })
     return () => data.subscription.unsubscribe()
   }, [])
+  async function requestReset(event: React.FormEvent) {
+    event.preventDefault()
+    if (busy) return
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: 'https://moana-multi-account-poc.vercel.app/?recovery=1',
+      })
+      setNotice(error ? 'ส่งคำขอไม่ได้ กรุณารอสักครู่แล้วลองใหม่' : 'หากอีเมลนี้มีบัญชี จะได้รับลิงก์ตั้งรหัสผ่านใหม่ กรุณาตรวจกล่องจดหมายและสแปม')
+    } catch { setNotice('เชื่อมต่อไม่ได้ กรุณาลองอีกครั้ง') }
+    finally { setBusy(false) }
+  }
+  async function changePassword(event: React.FormEvent) {
+    event.preventDefault()
+    if (busy) return
+    if (password.length < 12 || password !== confirmation) {
+      setNotice('ใช้รหัสผ่านอย่างน้อย 12 ตัวอักษร และกรอกทั้งสองช่องให้ตรงกัน'); return
+    }
+    setBusy(true)
+    let changed = false
+    try {
+      const result = await supabase.auth.updateUser({ password })
+      if (result.error) throw result.error
+      changed = true
+      const signedOut = await supabase.auth.signOut({ scope: 'global' })
+      if (signedOut.error) throw signedOut.error
+      setSession(null); setRecovery(false); setForgot(false)
+      history.replaceState(null, '', location.pathname)
+      setNotice('ตั้งรหัสผ่านใหม่แล้ว กรุณาเข้าสู่ระบบด้วยรหัสใหม่')
+    } catch {
+      setNotice(changed ? 'เปลี่ยนรหัสผ่านแล้ว แต่ออกจากระบบไม่สำเร็จ กรุณากดออกจากระบบ' : 'เปลี่ยนรหัสผ่านไม่ได้ ลิงก์อาจหมดอายุ หรือรหัสไม่ผ่านเงื่อนไข กรุณาขอลิงก์ใหม่')
+    } finally { setPassword(''); setConfirmation(''); setBusy(false) }
+  }
   async function login(event: React.FormEvent) {
     event.preventDefault()
     if (busy) return
@@ -42,16 +79,27 @@ function App() {
   }
   return <main>
     <header><p className="eyebrow">Moana · Technical POC · Not production</p>
-      <h1>{session ? 'รายการทดสอบ' : 'เข้าสู่ระบบ'}</h1>
+      <h1>{recovery ? 'ตั้งรหัสผ่านใหม่' : forgot ? 'ลืมรหัสผ่าน' : session ? 'รายการทดสอบ' : 'เข้าสู่ระบบ'}</h1>
       <p>พื้นที่ทดสอบการบันทึกออนไลน์ — ยังไม่ใช้ข้อมูลบัญชีจริง</p>
     </header>
-    {!ready ? <p role="status">กำลังตรวจการเข้าสู่ระบบ…</p> : session ? <>
+    {!ready ? <p role="status">กำลังตรวจการเข้าสู่ระบบ…</p> : recovery && session ? <form className="card" onSubmit={changePassword}>
+      <label>รหัสผ่านใหม่<input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} /></label>
+      <label>ยืนยันรหัสผ่านใหม่<input type="password" autoComplete="new-password" minLength={12} required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
+      <button disabled={busy}>บันทึกรหัสผ่านใหม่</button>
+      <button type="button" className="secondary" disabled={busy} onClick={logout}>ออกจากระบบ</button>
+    </form> : session ? <>
       <button className="secondary" disabled={busy} onClick={logout}>ออกจากระบบ</button>
       <Items key={session.user.id} userId={session.user.id} />
-    </> : <form className="card" onSubmit={login}>
+    </> : forgot || recovery ? <form className="card" onSubmit={requestReset}>
+      {recovery && <p>ลิงก์ไม่พร้อมใช้งานหรือหมดอายุ กรุณาขอลิงก์ใหม่</p>}
+      <label>อีเมล<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
+      <button disabled={busy}>ส่งลิงก์ตั้งรหัสผ่านใหม่</button>
+      <button type="button" className="secondary" disabled={busy} onClick={() => { setForgot(false); setRecovery(false); setNotice(''); history.replaceState(null, '', location.pathname) }}>กลับเข้าสู่ระบบ</button>
+    </form> : <form className="card" onSubmit={login}>
       <label>อีเมล<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
       <label>รหัสผ่าน<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label>
       <button disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
+      <button type="button" className="secondary" disabled={busy} onClick={() => { setForgot(true); setPassword(''); setNotice('') }}>ลืมรหัสผ่าน</button>
       <small>เฉพาะบัญชีเจ้าของที่ตั้งไว้ ไม่มีการเปิดรับสมัคร</small>
     </form>}
     <p role="status" className="notice">{notice}</p>
