@@ -1,4 +1,22 @@
-# Technical POC — not Multi Account production
+# Moana Multi Account — development, not production
+
+## Current checkpoint — 20 September 2026
+
+Stage 2 technical POC is complete under the owner-approved deployed-browser
+testing route. Authentication, persistent POC CRUD, private sample files,
+attachment backup/restore and an observed UI defect/fix/retest are recorded in
+`docs/api-acceptance-checkpoint.md`. The earlier historical notes below do not
+describe current connector or POC status.
+
+Stage 3 accounting engine is under implementation in `db/accounting/`.
+See `docs/accounting-checkpoint.md` for exact verification and remaining scope.
+The deployed website still shows the POC UI, not the accounting application.
+
+Developer checks: `npm ci`, `npm run build`, `node scripts/test-accounting.mjs`.
+Never commit private business specifications, account labels, real financial data,
+owner identity or credentials to this public repository.
+
+## Historical POC report (superseded by checkpoints above)
 
 This isolated demo proves the local browser workflow only. It contains mock state, no database, no accounting engine, no real data and no production code.
 
