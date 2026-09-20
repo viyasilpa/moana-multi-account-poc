@@ -206,19 +206,33 @@ do $$ declare v uuid; b uuid; before_lines bigint; failed boolean:=false; begin
 end $$;
 
 -- Flush deferred constraints before rollback so bad journals cannot hide in tests.
+do $$ declare result jsonb; tid uuid; begin
+  result:=public.accounting_activity(current_date-100,current_date,null,0);
+  perform pg_temp.ok('activity returns at most 25 rows',jsonb_array_length(result->'items')<=25 and (result->>'total')::int>0);
+  select id into tid from accounting.transactions where kind='expense' limit 1;
+  result:=public.accounting_detail(tid);
+  perform pg_temp.ok('detail returns immutable revisions and exact money strings',jsonb_array_length(result->'revisions')>0 and jsonb_array_length(result->'lines')>0 and jsonb_typeof(result->'lines'->0->'debit')='string');
+  perform pg_temp.reject('negative activity offset rejected','select public.accounting_activity(current_date-100,current_date,null,-1)','invalid_activity_filter');
+  perform pg_temp.ok('activity past last page is empty',jsonb_array_length(public.accounting_activity(current_date-100,current_date,null,10000)->'items')=0);
+end $$;
 set constraints all immediate;
 grant insert,select on test_results to authenticated,anon;
 set local role authenticated;
 select pg_temp.ok('owner RPC reads allowed',public.accounting_catalog()->'entities' is not null);
+select pg_temp.ok('owner activity RPC allowed',public.accounting_activity(current_date-100,current_date,null,0)->'items' is not null);
 select pg_temp.reject('owner direct journal writes denied','insert into accounting.lines default values','permission denied');
 select pg_temp.reject('owner internal helper denied','select accounting.line(null,null,1)','permission denied');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000099',true) is not null as nonowner_context_set;
 select pg_temp.reject('other authenticated owner check denies catalog','select public.accounting_catalog()','owner_required');
 select pg_temp.reject('other authenticated owner check denies posting','select public.accounting_post(''{}'')','owner_required');
+select pg_temp.reject('other authenticated activity denied','select public.accounting_activity(current_date-100,current_date,null,0)','owner_required');
+select pg_temp.reject('other authenticated detail denied','select public.accounting_detail(gen_random_uuid())','owner_required');
 reset role;
 set local role anon;
 select pg_temp.reject('anonymous catalog RPC denied','select public.accounting_catalog()','permission denied');
 select pg_temp.reject('anonymous posting RPC denied','select public.accounting_post(''{}'')','permission denied');
+select pg_temp.reject('anonymous activity denied','select public.accounting_activity(current_date-100,current_date,null,0)','permission denied');
+select pg_temp.reject('anonymous detail denied','select public.accounting_detail(gen_random_uuid())','permission denied');
 reset role;
 select count(*) as passed_checks,jsonb_agg(name order by name) as checks from test_results;
 rollback;

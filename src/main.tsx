@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { Attachments } from './Attachments'
 import { SystemCheck } from './SystemCheck'
+import { AccountingApp } from './AccountingApp'
 import './styles.css'
 
 type Item = { id: string; description: string; amount: number }
 const columns = 'id,description,amount'
+const Demo=lazy(()=>import('./Demo'))
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -78,9 +80,10 @@ function App() {
     } catch { setNotice('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง') }
     finally { setBusy(false) }
   }
+  if(new URLSearchParams(location.search).get('demo')==='1')return <Suspense fallback={<main>กำลังเปิดโหมดสาธิต…</main>}><Demo/></Suspense>
   return <main>
     <header><p className="eyebrow">Moana · Technical POC · Not production</p>
-      <h1>{recovery ? 'ตั้งรหัสผ่านใหม่' : forgot ? 'ลืมรหัสผ่าน' : session ? 'รายการทดสอบ' : 'เข้าสู่ระบบ'}</h1>
+      <h1>{recovery ? 'ตั้งรหัสผ่านใหม่' : forgot ? 'ลืมรหัสผ่าน' : session ? 'บัญชีหลายกิจการ' : 'เข้าสู่ระบบ'}</h1>
       <p>พื้นที่ทดสอบการบันทึกออนไลน์ — ยังไม่ใช้ข้อมูลบัญชีจริง</p>
     </header>
     {!ready ? <p role="status">กำลังตรวจการเข้าสู่ระบบ…</p> : recovery && session ? <form className="card" onSubmit={changePassword}>
@@ -90,7 +93,9 @@ function App() {
       <button type="button" className="secondary" disabled={busy} onClick={logout}>ออกจากระบบ</button>
     </form> : session ? <>
       <button className="secondary" disabled={busy} onClick={logout}>ออกจากระบบ</button>
-      <Items key={session.user.id} userId={session.user.id} />
+      <AccountingApp key={session.user.id} userId={session.user.id}/>
+      <details className="card"><summary>เครื่องมือทดสอบ POC เดิม (แยกจากบัญชี)</summary><Items key={session.user.id} userId={session.user.id}/></details>
+      <a href="/?demo=1">ลองข้อมูลสาธิต — ไม่แตะบัญชีจริง</a>
     </> : forgot || recovery ? <form className="card" onSubmit={requestReset}>
       {recovery && <p>ลิงก์ไม่พร้อมใช้งานหรือหมดอายุ กรุณาขอลิงก์ใหม่</p>}
       <label>อีเมล<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
