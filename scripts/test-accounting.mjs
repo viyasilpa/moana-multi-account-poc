@@ -17,7 +17,7 @@ try {
     grant select on public.app_owner to authenticated;
   `)
   await db.exec(storageStub)
-  for (const file of ['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql']) {
+  for (const file of ['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql','006_backup_utc.sql','007_lossless_backup_json.sql']) {
     await db.exec(await readFile(new URL(`../db/accounting/${file}`,import.meta.url),'utf8'))
   }
   const results=await db.exec(await readFile(new URL('../db/accounting/test_engine.sql',import.meta.url),'utf8'))

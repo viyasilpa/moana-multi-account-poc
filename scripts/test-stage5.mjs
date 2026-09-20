@@ -4,7 +4,7 @@ import {PGlite} from '@electric-sql/pglite'
 import {storageStub,restoreIsolated} from '../src/restore-core.ts'
 import {packBackup,unpackBackup,digest,encode} from '../src/backup-format.ts'
 
-const sql=await Promise.all(['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql'].map(f=>readFile(new URL('../db/accounting/'+f,import.meta.url),'utf8')))
+const sql=await Promise.all(['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql','006_backup_utc.sql','007_lossless_backup_json.sql'].map(f=>readFile(new URL('../db/accounting/'+f,import.meta.url),'utf8')))
 const db=new PGlite(),owner='00000000-0000-4000-8000-000000000001'
 let passed=0
 const ok=(value,message)=>{assert.ok(value,message);passed++}
@@ -50,7 +50,13 @@ try {
  ok(!access.rows[0].upload&&access.rows[0].read,'ready files readable but no further uploads')
  const archived=await rpc('accounting_attachment',{key:crypto.randomUUID(),action:'archive',id:a.id,reason:'Synthetic retention test'})
  ok(archived.state==='archived','archive preserves file')
+ await db.exec("set timezone='Asia/Bangkok'")
+ await db.exec('reset role')
+ await db.query("insert into accounting.audit_events(actor_id,action,details) values($1,'synthetic_precision_probe','{\"exact\":9999999999999999.99}')",[owner])
+ await db.exec('set role authenticated')
  let snapshot=await rpc('accounting_backup')
+ ok(snapshot.tables.requests.every(r=>r.created_at.endsWith('+00:00')),'backup timestamps canonical UTC despite source session timezone')
+ ok(snapshot.version===2&&snapshot.tables.audit_events.some(r=>r.details.includes('9999999999999999.99')),'nested JSON numeric history survives without JS number conversion')
  ok(snapshot.counts.transactions>10&&snapshot.counts.revisions>snapshot.counts.transactions,'snapshot includes corrections')
  ok(snapshot.tables.lines.every(l=>typeof l.debit==='string'&&typeof l.credit==='string'),'backup money exact strings')
  ok(snapshot.tables.batches.every(b=>typeof b.sequence==='string'),'backup bigint exact strings')

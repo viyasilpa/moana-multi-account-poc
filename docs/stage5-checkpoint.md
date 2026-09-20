@@ -39,11 +39,35 @@ opening date or balances are invented. Previous source checkpoint:
 - Nine mounted React/jsdom checks, including same-ID master archive and actual
   JSON Blob contents, native download link and stale URL removal on failure.
 - Exact-money/CSV unit checks and 79 existing SQL regression checks.
-- 35 additional stage-5 checks: idempotency, stale revision, invalid filename /
+- 37 additional stage-5 checks: idempotency, stale revision, invalid filename /
   MIME / oversized reservation, missing/mismatched upload, owner/nonowner/anon
   permissions, no object update/delete, archive retention, exact backup strings,
   tamper/incomplete-file/count rejection, full synthetic restore and identical
   reports, unbalanced journals and broken current revisions rejected.
+  Source-session timezone variation also preserves canonical UTC timestamps and
+  microsecond precision (never normalized through a JavaScript Date).
+  Version 2 snapshots transport nested JSONB history as canonical text; a numeric
+  JSON value of 9999999999999999.99 survives export/recovery without JS rounding.
+  Version 1 UI-created backups remain readable. A digest verifies corruption,
+  not provenance: only restore a backup from a trusted source.
+
+Hosted migration `accounting_private_documents_backup` applied successfully.
+Owner snapshot RPC worked; nonowner/anonymous API denial and private bucket /
+5 MiB limit were verified on Supabase. Recursive comparison against the private
+pre-change checkpoint found every existing accounting table unchanged. The
+actual private snapshot also restored into an empty local database and matched
+all exported tables exactly (zero live ledger entries, opening still unset).
+
+That last rehearsal found a genuine issue missed by same-environment fixtures:
+PGlite's default timezone rendered timestamps differently. Restore now uses UTC;
+the additive `accounting_backup_utc` migration canonically exports UTC while
+retaining microseconds. A timezone-variation regression covers the fix.
+
+Initial source `6fb3454f516f9ab8ba6d1c86ee30c0b952742b33` deployed READY as
+`dpl_51ugmse3c4ZDyAN23268Yke2wyNC` on the main application alias. Follow-up
+verification/fix commit contains this checkpoint. Security advisor found no new
+warnings; previously known leaked-password protection warning remains. See
+https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 
 Storage tests use a metadata stub in PGlite. They do NOT prove the hosted Storage
 HTTP upload/download, signed URL expiry, or actual binary MIME sniffing. jsdom

@@ -5,6 +5,8 @@ import commands from '../db/accounting/002_commands.sql?raw'
 import masters from '../db/accounting/003_masters.sql?raw'
 import reads from '../db/accounting/004_read_api.sql?raw'
 import documents from '../db/accounting/005_documents_backup.sql?raw'
+import utc from '../db/accounting/006_backup_utc.sql?raw'
+import lossless from '../db/accounting/007_lossless_backup_json.sql?raw'
 import {storageStub} from './restore-core'
 import { AccountingApp } from './AccountingApp'
 import type { Api } from './accounting'
@@ -22,7 +24,7 @@ async function createDemo():Promise<Api> {
  grant usage on schema auth to authenticated; grant select on public.app_owner to authenticated;
  select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);`)
  await db.exec(storageStub)
- for(const sql of [core,commands,masters,reads,documents])await db.exec(sql)
+ for(const sql of [core,commands,masters,reads,documents,utc,lossless])await db.exec(sql)
  const manifest={entities:Array.from({length:6},(_,i)=>({code:`D${i+1}`,name:`กิจการสาธิต ${i+1}`,accounts:[{code:'bank',name:'ธนาคารสาธิต',kind:'bank'},{code:'cash',name:'เงินสดสาธิต',kind:'cash'},{code:'income',name:'รายรับสาธิต',kind:'income'},{code:'expense',name:'ค่าใช้จ่ายสาธิต',kind:'expense'}]}))}
  await db.query('select accounting.configure($1::jsonb)',[JSON.stringify(manifest)])
  await db.exec('set role authenticated')

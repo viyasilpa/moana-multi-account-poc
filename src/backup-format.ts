@@ -1,5 +1,5 @@
 export const tableNames=['settings','entities','parties','accounts','transactions','revisions','batches','lines','audit_events','requests','attachments'] as const
-export type Snapshot={format:'moana-ledger';version:1;exported_at:string;tables:Record<typeof tableNames[number],Record<string,unknown>[]>;counts:Record<string,number>}
+export type Snapshot={format:'moana-ledger';version:1|2;exported_at:string;tables:Record<typeof tableNames[number],Record<string,unknown>[]>;counts:Record<string,number>}
 export type FileCopy={path:string;mime:string;size:number;sha256:string;base64:string}
 export type BackupPayload={snapshot:Snapshot;files:FileCopy[]}
 export const backupLimit=50*1024*1024
@@ -20,7 +20,7 @@ export async function unpackBackup(text:string):Promise<BackupPayload> {
  const e=JSON.parse(text)
  if(e?.format!=='moana-backup'||e.version!==1||typeof e.data!=='string'||await digest(new TextEncoder().encode(e.data))!==e.sha256)throw new Error('backup_integrity_failed')
  const p=JSON.parse(e.data) as BackupPayload,s=p.snapshot
- if(s?.format!=='moana-ledger'||s.version!==1||!s.tables||!s.counts||!Array.isArray(p.files))throw new Error('unsupported_backup')
+ if(s?.format!=='moana-ledger'||![1,2].includes(s.version)||!s.tables||!s.counts||!Array.isArray(p.files))throw new Error('unsupported_backup')
  if(Object.keys(s.tables).length!==tableNames.length)throw new Error('backup_table_mismatch')
  for(const t of tableNames)if(!Array.isArray(s.tables[t])||s.tables[t].length!==s.counts[t])throw new Error('backup_count_mismatch: '+t)
  if(s.tables.settings.length!==1||s.tables.entities.length!==6)throw new Error('backup_setup_invalid')

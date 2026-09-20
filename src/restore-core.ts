@@ -11,7 +11,7 @@ grant select,insert on storage.objects to authenticated;`
 export async function restoreIsolated(snapshot:Snapshot,sql:string[]) {
  const db=new PGlite()
  try {
-  await db.exec(`create role anon; create role authenticated; create schema auth;
+  await db.exec(`set timezone='UTC'; create role anon; create role authenticated; create schema auth;
    create table auth.users(id uuid primary key);
    create function auth.uid() returns uuid language sql stable as 'select nullif(current_setting(''request.jwt.claim.sub'',true),'''')::uuid';
    create table public.app_owner(user_id uuid references auth.users(id));
@@ -24,7 +24,13 @@ export async function restoreIsolated(snapshot:Snapshot,sql:string[]) {
   await db.transaction(async tx=>{
    // Only these fixed identifiers can become SQL. Data is always bound JSON.
    for(const t of ['entities','parties','accounts','transactions','revisions','batches','lines','audit_events','requests','attachments'] as const) {
-    await tx.query(`insert into accounting.${t} ${t==='batches'?'overriding system value':''} select * from jsonb_populate_recordset(null::accounting.${t},$1::jsonb)`,[JSON.stringify(snapshot.tables[t])])
+    const jsonFields:Record<string,string[]>={revisions:['input'],audit_events:['details'],requests:['payload','response']}
+    let source='$1::jsonb'
+    if(snapshot.version===2&&jsonFields[t]) {
+     const changes=jsonFields[t].map(k=>`'${k}',(v->>'${k}')::jsonb`).join(',')
+     source=`(select coalesce(jsonb_agg(v||jsonb_build_object(${changes})),'[]'::jsonb) from jsonb_array_elements($1::jsonb) v)`
+    }
+    await tx.query(`insert into accounting.${t} ${t==='batches'?'overriding system value':''} select * from jsonb_populate_recordset(null::accounting.${t},${source})`,[JSON.stringify(snapshot.tables[t])])
    }
    await tx.query(`update accounting.settings set (start_date,currency,timezone,schema_version,opening_finalized_at)=(select start_date,currency,timezone,schema_version,opening_finalized_at from jsonb_populate_record(null::accounting.settings,$1::jsonb))`,[JSON.stringify(snapshot.tables.settings[0])])
    await tx.exec(`select setval(pg_get_serial_sequence('accounting.batches','sequence'),coalesce((select max(sequence) from accounting.batches),1),exists(select 1 from accounting.batches));
@@ -35,7 +41,17 @@ export async function restoreIsolated(snapshot:Snapshot,sql:string[]) {
   await db.exec('set role authenticated')
   const exported=await db.query<{data:Snapshot}>('select public.accounting_backup() data')
   const canonical=(v:unknown):string=>JSON.stringify(v,(_,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.entries(x).sort(([a],[b])=>a.localeCompare(b))):x)
-  if(canonical(exported.rows[0].data.tables)!==canonical(snapshot.tables))throw new Error('restore_roundtrip_mismatch')
+  // Version 1 backups predate lossless JSONB text transport. Compare the same format.
+  const restoredTables=exported.rows[0].data.tables
+  if(snapshot.version===1)for(const [t,fields] of Object.entries({revisions:['input'],audit_events:['details'],requests:['payload','response']}))for(const row of restoredTables[t as keyof Snapshot['tables']])for(const field of fields)row[field]=JSON.parse(String(row[field]))
+  for(const t of Object.keys(snapshot.tables) as (keyof Snapshot['tables'])[]) {
+   const actual=exported.rows[0].data.tables[t],expected=snapshot.tables[t]
+   if(canonical(actual)!==canonical(expected)) {
+    const i=actual.findIndex((row,i)=>canonical(row)!==canonical(expected[i]))
+    const keys=i<0?['count']:Object.keys(expected[i]||{}).filter(k=>canonical(actual[i]?.[k])!==canonical(expected[i]?.[k]))
+    throw new Error(`restore_roundtrip_mismatch: ${t} row ${i} fields ${keys.join(',')}`)
+   }
+  }
   const start=snapshot.tables.settings[0].start_date
   const report=start?(await db.query<{data:unknown}>('select public.accounting_report($1::date,$2::date) data',[start,snapshot.exported_at.slice(0,10)<String(start)?start:snapshot.exported_at.slice(0,10)])).rows[0].data:null
   return {counts:exported.rows[0].data.counts,report}

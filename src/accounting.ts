@@ -16,7 +16,8 @@ export const labels:Record<string,string>={expense:'รายจ่าย',incom
 export function errorText(error:unknown) {
  const e=error as {message?:string}; const m=e?.message||'เชื่อมต่อไม่สำเร็จ'
  const translated:Record<string,string>={stale_revision:'รายการเปลี่ยนจากอีกหน้าหนึ่ง กรุณาโหลดรายการใหม่ก่อนแก้ไข',opening_required:'กรุณาตั้งยอดยกมาก่อนลงรายการ',source_has_active_refunds:'รายการนี้มีการคืนเงินแล้ว ต้องแก้รายการคืนเงินก่อน',invalid_or_future_date:'วันที่ไม่ถูกต้อง หรือเป็นวันที่ในอนาคต',refund_exceeds_remaining:'ยอดคืนเกินยอดคงเหลือ'}
- return translated[m]||m
+ const documents:Record<string,string>={upload_missing:'ยังไม่พบไฟล์อัปโหลด หากการเชื่อมต่อขาดให้ลองแนบไฟล์เดิมอีกครั้ง',upload_metadata_mismatch:'ขนาดหรือชนิดไฟล์ไม่ตรงกับที่จอง กรุณาเลือกไฟล์ใหม่',posted_transaction_required:'แนบไฟล์ได้เฉพาะรายการที่ยังไม่ยกเลิก',finish_upload_first:'กรุณายืนยันอัปโหลดให้เสร็จก่อน',archive_reason_required:'กรุณาระบุเหตุผลเก็บไฟล์เข้าประวัติ',backup_integrity_failed:'ไฟล์สำรองไม่ครบหรือถูกเปลี่ยนแปลง กรุณาใช้สำเนาเดิม',backup_files_incomplete:'ไฟล์แนบในชุดสำรองไม่ครบ',backup_file_integrity_failed:'เนื้อไฟล์แนบไม่ตรงกับชุดสำรอง'}
+ return translated[m]||documents[m]||m
 }
 export function downloadCsv(name:string,rows:string[][]) {
  const url=URL.createObjectURL(new Blob([csvText(rows)],{type:'text/csv;charset=utf-8'}))
