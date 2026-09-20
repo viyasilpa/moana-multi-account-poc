@@ -31,7 +31,7 @@ export function AccountingApp({userId,api=liveApi,demo=false}:Props) {
   } catch(e) {
    // Only explicit SQL failures guarantee rollback. Unknown transport outcomes keep the same key.
    const code=(e as {code?:string}).code
-   if(code && /^(22|23|40|42|P0)/.test(code)) {
+   if(code && (/^(22|23|40|42|P0)/.test(code)||code==='PT409')) {
     if(!demo)sessionStorage.removeItem(storageKey)
     setPending(null);setNotice(errorText(e))
    } else setNotice('ยังยืนยันผลไม่ได้ กดตรวจสอบ/ส่งคำขอเดิมอีกครั้ง ห้ามสร้างรายการซ้ำ · '+errorText(e))

@@ -113,6 +113,18 @@ describe('Stage 4 interaction regression',()=>{
   expect(screen.queryByRole('button',{name:'ตรวจสอบ / ส่งคำขอเดิม'})).toBeNull()
   expect(sessionStorage.getItem('moana-command-v1:synthetic-user')).toBeNull()
  })
+ it('unlocks the UI after PT409 stale revision without retrying a rolled-back command',async()=>{
+  Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:vi.fn()})
+  const user=userEvent.setup(),{api,calls}=fixture(()=>{throw {code:'PT409',message:'stale_revision'}})
+  await mount(api);await fillExpense(user)
+  await screen.findByText('รายการเปลี่ยนจากอีกหน้าหนึ่ง กรุณาโหลดรายการใหม่ก่อนแก้ไข')
+  expect(screen.queryByRole('button',{name:'ตรวจสอบ / ส่งคำขอเดิม'})).toBeNull()
+  expect(sessionStorage.getItem('moana-command-v1:synthetic-user')).toBeNull()
+  await user.click(screen.getByRole('button',{name:'รายการ'}))
+  await user.click(screen.getByRole('button',{name:'ออกโดยไม่บันทึก'}))
+  await screen.findByRole('heading',{name:'รายการ'})
+  expect(calls).toHaveLength(1)
+ })
  it('does not send when safe retry persistence is unavailable',async()=>{
   const user=userEvent.setup(),{api,calls}=fixture();await mount(api)
   vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new Error('storage unavailable')})
