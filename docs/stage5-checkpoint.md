@@ -1,5 +1,21 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Owner-observed Safari acceptance — 2026-09-20
+
+The owner returned the acceptance v1 report at 2026-09-20T05:13:06.522Z
+(12:13 Thailand time), using Safari 26.5 on macOS. All five displayed checks
+passed: synthetic unopened database, isolated restore with complete table
+comparison, tampered-backup rejection, native JSON save/reselect/restore, and
+native PNG save/reselect with exact-byte verification.
+
+This closes the desktop Safari synthetic-file save/reopen subset for the
+separate acceptance page deployed from
+`732ae5519bd3f02c8482993783d089fd09e4e8ba`. It is user-observed evidence,
+not an agent-controlled browser run. It does not prove the main app's
+authenticated attachment flow, backups containing hosted attachments, signed
+URL expiry, physical iPad controls, or concurrent-device edits. Those gates
+remain open. No opening was posted and no real data was used.
+
 ## Replacement browser route: `/acceptance.html`
 
 A separate Vite entrypoint provides a no-login, synthetic-only file acceptance
