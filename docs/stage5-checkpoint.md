@@ -1,5 +1,177 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Owner-observed Mac + Android stale-edit acceptance — 2026-09-20
+
+PASS for the tested two-device scenario on deployment
+`cb4629b98943092cf2513b3bb9dfce4ab114883d`, using the isolated synthetic
+project only. Shared transaction prefix: `654b0569`.
+
+The initial 2.25/revision-2 screenshots established matching reads only: the
+owner clarified that Android had not submitted its edit. They are NOT counted
+as conflict evidence. In the repeated scenario both edit forms held revision 2.
+Mac submitted 4.25 and displayed revision 3. Android's 5.25 edit then displayed
+the stale-revision message requesting a reload (owner screenshot at 13:28).
+After choosing to leave without saving, the owner explicitly confirmed Android
+showed the same 4.25/revision 3 as Mac. This closes the observed stale-edit
+rejection and post-conflict navigation/reload scenario on Mac + Android.
+
+This is sequential submission from two stale forms, not simultaneous network
+arrival; overlapping HTTP races were verified separately. It does not establish
+physical iPad support or every mobile attachment control. The tested fixes remain
+on the test branch and have not been promoted to main/original database.
+No operational opening balances or real transaction data were used.
+
+
+## Two-device UI prepared — 2026-09-20
+
+Owner has Mac Safari and Android; physical iPad remains untested. Dedicated
+`/device.html` mounts the real app against the isolated synthetic project only.
+It prepares the same idempotent test expense on both devices and provides steps
+for stale-edit rejection. A discovered PT409 pending-state UI defect is fixed;
+17 mounted UI checks and build/typecheck passed. Owner explicitly approved the
+synthetic password setup after its initial approval rejection. Login verified;
+the setup function was replaced with HTTP 410 immediately. See
+`stage5-device-test.md`. Actual two-device observations are still pending.
+
+## Owner-observed full hosted backup on Safari — 2026-09-20
+
+Owner returned acceptance v2 at 2026-09-20T05:44:59.468Z (12:44 Thailand),
+Safari 26.5 on macOS, from the hosted-fixture acceptance page deployed from
+`f10f24aaf46ed7e69142998c936d622f86946ac6`.
+
+All five checks passed: synthetic hosted snapshot with 2 attachment files,
+isolated restore matching every table, modified-envelope rejection, native
+JSON save/reselect and native PNG save/reselect. This closes the desktop Safari
+full hosted-fixture save/reopen gate. It is owner-observed evidence, not an
+agent-controlled browser run or an authenticated main-app UI test.
+
+Current remaining gates: physical iPad controls and actual two-device UI
+observation; promotion of tested patch 008 and frontend to the original app.
+Backend concurrent-client HTTP checks already passed separately. Actual
+operational opening remains unset and is not required to continue development.
+Historical pending statements below are superseded by this and the hosted
+acceptance section.
+
+## 2026-09-20: hosted synthetic acceptance and two real defects
+
+Owner explicitly approved synthetic opening in a separate test environment.
+Created `moana-stage5-synthetic-test` (`bpedekosireooxrsaerp`) in the existing
+organization; the cost tool quoted $0/month. The original application project
+was not modified. Two synthetic Auth users were created without sending email;
+all entities, openings, transactions and files are invented test data.
+
+Hosted HTTP acceptance passed after applying source patch 008 to the test
+project: private upload/finalize/download hash, denied overwrite, anonymous and
+nonowner denial, same-key concurrent HTTP idempotency, conflicting-payload
+rejection, concurrent edits yielding one success and one stale_revision, and
+attachment retention across edit/void/archive. A 60-second signed URL returned
+HTTP 400 with an exp-claim timestamp failure after expiry; a fresh URL still
+returned HTTP 200 and the original bytes. See stage5-hosted-results.json.
+
+The first hosted post exposed a deferred-trigger privilege failure at HTTP
+commit. Patch 008 drains only the balance constraint triggers inside the
+existing owner-checked posting command, then restores deferred mode. It does
+not add SECURITY DEFINER functions/triggers or widen grants; authenticated
+users still cannot execute validate_batch or insert ledger lines directly.
+See https://www.postgresql.org/docs/17/sql-set-constraints.html
+
+Stale-revision conflicts previously used SQLSTATE 40001. In the hosted race the
+loser timed out while the winning edit committed; the exact internal timeout
+mechanism is not established. Mapping this expected client conflict to PT409
+made the repeated hosted race return stale_revision immediately and correctly.
+Both posting and attachment reservation now use PT409. See
+https://docs.postgrest.org/en/stable/references/errors.html#raise-errors-with-http-status-codes
+
+Full hosted synthetic backup contains 5 transactions, 11 revisions, 14 batches,
+28 lines and 2 completed/archived file copies. Local restore matched every table
+exactly; report amounts and rows match after normalizing unordered report arrays.
+The public fixture contains ONLY the synthetic snapshot and file bytes, never
+passwords/tokens. `npm run test:hosted-backup` reproduces this check.
+
+Verification: 16 mounted UI tests, 79 engine checks, 42 stage-5 checks, 9 unopened
+checks, 2 acceptance-page integration scenarios and build/typecheck passed.
+Temporary runner required JWT plus a random secret, was limited to the test
+project and a one-hour deadline, and allowed bootstrap once. It has now been
+replaced with a JWT-protected HTTP 410 response. Temporary password and signed
+URL state was removed. The two synthetic users and evidence remain in the
+isolated free project. RLS on runner state intentionally has no client policies;
+the test project's leaked-password-protection warning remains.
+
+### Still open
+
+- Physical iPad controls and actual two-device UI observation. The backend race
+  evidence is overlapping HTTP calls from two signed-in clients, not two devices.
+- Patch 008 is tested in the sandbox and stored in this branch ONLY; it has NOT
+  been applied to the original app database or merged to main. Release promotion
+  must include the SQL fix, not just the frontend.
+- Actual operational start date/opening remains an owner decision.
+
+## Owner-observed Safari acceptance — 2026-09-20
+
+The owner returned the acceptance v1 report at 2026-09-20T05:13:06.522Z
+(12:13 Thailand time), using Safari 26.5 on macOS. All five displayed checks
+passed: synthetic unopened database, isolated restore with complete table
+comparison, tampered-backup rejection, native JSON save/reselect/restore, and
+native PNG save/reselect with exact-byte verification.
+
+This closes the desktop Safari synthetic-file save/reopen subset for the
+separate acceptance page deployed from
+`732ae5519bd3f02c8482993783d089fd09e4e8ba`. It is user-observed evidence,
+not an agent-controlled browser run. It does not prove the main app's
+authenticated attachment flow, backups containing hosted attachments, signed
+URL expiry, physical iPad controls, or concurrent-device edits. Those gates
+remain open. No opening was posted and no real data was used.
+
+## Replacement browser route: `/acceptance.html`
+
+A separate Vite entrypoint provides a no-login, synthetic-only file acceptance
+page for the owner's Chrome/Safari. It imports no Supabase client or live app
+entrypoint. Its CSP restricts connections to its own origin for PGlite assets.
+It creates six synthetic entities in memory, leaves opening/date unset, uses
+the exact schema and production backup/restore functions, and creates native
+JSON and PNG download links. Selecting the saved JSON checks its exact hash and
+restores all tables in another isolated database. Selecting the PNG compares its
+bytes. Only files matching this page's generated hashes reach validation/restore;
+there is no upload. Refreshing starts a new fixture; use downloads from that run.
+
+`npm run test:acceptance` passed an integration scenario with real in-memory
+PGlite: preparation, both file-selection handlers, restore, and wrong-file
+rejection. The DOM and file selection were simulated in jsdom. Build/typecheck
+passed. The generated PNG's integrity was separately verified. These results
+do NOT establish actual browser downloads, physical Safari/iPad acceptance,
+hosted attachment HTTP, signed-link expiration, or multi-device concurrency.
+The owner must download/select the two files and return the page's result before
+the native-browser subset can be marked passed. The page labels the other gates
+as pending; no opening or posted transaction is created to reach those gates.
+
+## 2026-09-20: offline path without opening a ledger
+
+Latest main was verified as `c4317f523325cc642536959ccfd8ff0ba77c19aa`.
+`npm run test:unopened` passes nine checks using synthetic masters in disposable
+PGlite only. It never submits an opening command, loads real data, or contacts a
+hosted service. It saves a backup to a temporary disk file, reads it back,
+restores into a fresh database with all table equality checks, rejects a modified
+file, verifies owner-only export, rejects posting before opening and attachment
+reservation without a posted transaction, and verifies source tables unchanged.
+Temporary files are removed after the run. Start date and opening remain null.
+
+This is disk I/O and isolated restore evidence, NOT browser save/reopen or
+hosted attachment acceptance. Existing `npm test` uses synthetic opening
+fixtures; it was intentionally not rerun under the current no-opening constraint.
+
+Cloud Browser is not inherently required for acceptance. Another real browser
+or test runner can provide browser evidence. In this workspace the alternate
+browser CLI, Docker and PostgreSQL executables were unavailable; installing
+PostgreSQL through apt failed due to unavailable package metadata and inability
+to switch the package-fetch process user. No elevated retry was attempted.
+
+Positive attachment tests require a posted transaction. With the no-opening
+constraint and an unopened ledger, those tests cannot be reached through normal
+application commands. Do not silently initialize the ledger, bypass constraints,
+or relabel mock transport as hosted evidence. A separately scoped synthetic
+fixture with posted transactions is a prerequisite for that acceptance gate.
+Multi-session PostgreSQL and physical Safari/iPad acceptance remain unverified.
+
 ## Follow-up: file workflow and retention
 
 Owner-supplied Safari screenshot confirms a downloaded JSON was selected and

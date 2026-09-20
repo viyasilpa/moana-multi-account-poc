@@ -1,0 +1,85 @@
+{
+  "project": "bpedekosireooxrsaerp",
+  "synthetic_only": true,
+  "main_project_modified": false,
+  "results": [
+    {
+      "id": "run-result",
+      "data": {
+        "at": "2026-09-20T05:29:56.456Z",
+        "checks": [
+          "synthetic-only zero opening through normal RPC",
+          "overlapping HTTP same-key requests return same receipt",
+          "different payload same key rejected",
+          "hosted Storage HTTP upload and RPC finalize",
+          "authenticated download exact SHA256",
+          "overwrite rejected",
+          "anonymous Storage read denied",
+          "nonowner Storage read denied",
+          "signed URL readable before expiry"
+        ],
+        "status": "passed"
+      }
+    },
+    {
+      "id": "expiry-result",
+      "data": {
+        "at": "2026-09-20T05:31:09.816Z",
+        "status": "passed",
+        "freshStatus": 200,
+        "expiredStatus": 400
+      }
+    },
+    {
+      "id": "finish-result",
+      "data": {
+        "at": "2026-09-20T05:34:50.826Z",
+        "checks": [
+          "synthetic-only zero opening through normal RPC",
+          "overlapping HTTP same-key requests return same receipt",
+          "different payload same key rejected",
+          "hosted Storage HTTP upload and RPC finalize",
+          "authenticated download exact SHA256",
+          "overwrite rejected",
+          "anonymous Storage read denied",
+          "nonowner Storage read denied",
+          "signed URL readable before expiry",
+          "overlapping HTTP edits: one success, one stale_revision",
+          "edit and void retain original revision attachment",
+          "one transaction, revision 3 and balanced batches",
+          "complete hosted backup includes archived file bytes and hashes"
+        ],
+        "expiry": "pending",
+        "status": "passed",
+        "transaction": "3a085548-e3da-4708-9e70-30344f4a1bb2"
+      }
+    },
+    {
+      "id": "race-detail",
+      "data": [
+        {
+          "data": {
+            "status": "posted",
+            "revision": 2,
+            "warnings": [
+              {
+                "code": "negative_money_balance",
+                "balance": "-7.75",
+                "account_id": "d7bbeab0-c268-4a01-937f-52e48ab98390"
+              }
+            ],
+            "transaction_id": "b1590802-3e07-4939-b737-9e959cfc2b43"
+          },
+          "error": null
+        },
+        {
+          "data": null,
+          "error": {
+            "code": "PT409",
+            "message": "stale_revision"
+          }
+        }
+      ]
+    }
+  ]
+}

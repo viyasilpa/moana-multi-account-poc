@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="th">
+<head>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <meta name="robots" content="noindex,nofollow" />
+ <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+ <title>Moana — ทดสอบไฟล์ในเบราว์เซอร์</title>
+</head>
+<body><main>
+ <header><p class="eyebrow">Moana · พื้นที่ทดสอบแยก</p><h1>ทดสอบไฟล์ในเครื่องนี้</h1>
+ <p>ใช้ข้อมูลสมมติ ไม่ต้องล็อกอิน และไม่ตั้งยอดเปิด</p></header>
+ <section class="card"><h2>1. เตรียมไฟล์ทดสอบ</h2>
+ <p>ระบบจะสร้างข้อมูลสมมติและตรวจการสำรองในเครื่องนี้ อาจใช้เวลาสักครู่</p>
+ <button id="prepare">เริ่มทดสอบ</button><p id="status" role="status" aria-live="polite"></p></section>
+ <section class="card" id="files" hidden><h2>2. บันทึกแล้วเลือกไฟล์กลับมา</h2>
+ <p>กดดาวน์โหลดแต่ละไฟล์ แล้วกดเลือกไฟล์ที่เพิ่งบันทึกจาก Downloads / รายการดาวน์โหลด</p>
+ <p><a id="backup-link" download="moana-synthetic-backup.json">ดาวน์โหลดไฟล์สำรอง JSON</a></p>
+ <label>เลือกไฟล์สำรอง JSON กลับมาตรวจ<input id="backup-input" type="file" accept=".json,application/json" /></label>
+ <p><a id="image-link" download="moana-synthetic-image.png">ดาวน์โหลดรูปภาพทดสอบ PNG</a></p>
+ <label>เลือกรูปภาพทดสอบ PNG กลับมาตรวจ<input id="image-input" type="file" accept=".png,image/png" /></label>
+ <p>เลือกเฉพาะสองไฟล์ทดสอบที่หน้านี้สร้างให้</p></section>
+ <section class="card"><h2>ผลทดสอบ</h2><ul id="results"></ul>
+ <p id="summary" role="status">ยังไม่ได้เริ่ม</p>
+ <button id="copy" class="secondary" disabled>คัดลอกผลให้ถั่ว</button>
+ <textarea id="report" aria-label="ผลทดสอบสำหรับส่งให้ถั่ว" readonly rows="9" hidden></textarea>
+ </section>
+ <section class="card"><h2>ส่วนที่ยังรอทดสอบ</h2><p>การแนบไฟล์ออนไลน์ ลิงก์ดาวน์โหลดหมดอายุ และการแก้รายการพร้อมกันหลายอุปกรณ์ หน้านี้ยังไม่ยืนยันผลสามส่วนนี้</p></section>
+ </main><script type="module" src="/src/acceptance.ts"></script></body>
+</html>

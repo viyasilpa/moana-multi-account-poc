@@ -4,7 +4,7 @@ import {PGlite} from '@electric-sql/pglite'
 import {storageStub,restoreIsolated} from '../src/restore-core.ts'
 import {packBackup,unpackBackup,digest,encode} from '../src/backup-format.ts'
 
-const sql=await Promise.all(['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql','006_backup_utc.sql','007_lossless_backup_json.sql'].map(f=>readFile(new URL('../db/accounting/'+f,import.meta.url),'utf8')))
+const sql=await Promise.all(['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql','006_backup_utc.sql','007_lossless_backup_json.sql','008_command_constraint_checks.sql'].map(f=>readFile(new URL('../db/accounting/'+f,import.meta.url),'utf8')))
 const db=new PGlite(),owner='00000000-0000-4000-8000-000000000001'
 let passed=0
 const ok=(value,message)=>{assert.ok(value,message);passed++}
@@ -57,7 +57,7 @@ try {
  const access=await db.query('select accounting.attachment_access($1,true) upload,accounting.attachment_access($1,false) read',[a.path])
  ok(!access.rows[0].upload&&access.rows[0].read,'ready files readable but no further uploads')
  const competing=await Promise.allSettled(['2.25','3.25'].map(amount=>rpc('accounting_post',{key:crypto.randomUUID(),action:'edit',transaction_id:tx.id,expected_revision:1,reason:'Synthetic overlapping edit',entry:{...entry,amount}})))
- ok(competing.filter(x=>x.status==='fulfilled').length===1&&competing.filter(x=>x.status==='rejected'&&x.reason.code==='40001').length===1,'overlapping queued edits reject stale revision')
+ ok(competing.filter(x=>x.status==='fulfilled').length===1&&competing.filter(x=>x.status==='rejected'&&x.reason.code==='PT409').length===1,'overlapping queued edits reject stale revision')
  const listed=async()=> (await db.query('select public.accounting_attachment_list($1) data',[tx.id])).rows[0].data
  let retained=await listed()
  ok(retained.length===1&&retained[0].revision===1&&retained[0].path===a.path,'edit retains attachment on original revision')
