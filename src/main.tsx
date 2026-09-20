@@ -1,110 +1,155 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from './supabase'
 import './styles.css'
 
-type MockTransaction = {
-  id: string
-  description: string
-  amount: string
-}
+type Item = { id: string; description: string; amount: number }
+const columns = 'id,description,amount'
 
 function App() {
-  const [items, setItems] = useState<MockTransaction[]>([])
+  const [session, setSession] = useState<Session | null>(null)
+  const [ready, setReady] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next); setReady(true); setPassword('')
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
+  async function login(event: React.FormEvent) {
+    event.preventDefault()
+    if (busy) return
+    setBusy(true); setNotice('')
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (error) setNotice('เข้าสู่ระบบไม่สำเร็จ ตรวจอีเมล รหัสผ่าน และการเชื่อมต่อ')
+    } catch { setNotice('เชื่อมต่อไม่ได้ กรุณาลองอีกครั้ง') }
+    finally { setPassword(''); setBusy(false) }
+  }
+  async function logout() {
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' })
+      if (error) setNotice('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง')
+      else { setSession(null); setNotice('ออกจากระบบแล้ว') }
+    } catch { setNotice('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง') }
+    finally { setBusy(false) }
+  }
+  return <main>
+    <header><p className="eyebrow">Moana · Technical POC · Not production</p>
+      <h1>{session ? 'รายการทดสอบ' : 'เข้าสู่ระบบ'}</h1>
+      <p>พื้นที่ทดสอบการบันทึกออนไลน์ — ยังไม่ใช้ข้อมูลบัญชีจริง</p>
+    </header>
+    {!ready ? <p role="status">กำลังตรวจการเข้าสู่ระบบ…</p> : session ? <>
+      <button className="secondary" disabled={busy} onClick={logout}>ออกจากระบบ</button>
+      <Items key={session.user.id} userId={session.user.id} />
+    </> : <form className="card" onSubmit={login}>
+      <label>อีเมล<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
+      <label>รหัสผ่าน<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label>
+      <button disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
+      <small>เฉพาะบัญชีเจ้าของที่ตั้งไว้ ไม่มีการเปิดรับสมัคร</small>
+    </form>}
+    <p role="status" className="notice">{notice}</p>
+  </main>
+}
+
+function Items({ userId }: { userId: string }) {
+  const [items, setItems] = useState<Item[]>([])
+  const [allowed, setAllowed] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const lock = useRef(false)
+  const [notice, setNotice] = useState('')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
-  const [notice, setNotice] = useState('')
-
-  function resetForm() {
-    setDescription('')
-    setAmount('')
-    setEditingId(null)
-  }
-
-  function save() {
-    const cleanDescription = description.trim()
-    const cleanAmount = amount.trim()
-    if (!cleanDescription || !cleanAmount) {
-      setNotice('กรอกรายละเอียดและจำนวนเงินก่อนบันทึก')
-      return
+  const [editing, setEditing] = useState<Item | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Item | null>(null)
+  const [reload, setReload] = useState(0)
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    let active = true
+    setLoading(true); setAllowed(false); setItems([])
+    async function load() {
+      try {
+        const owner = await supabase.from('app_owner').select('user_id').eq('user_id', userId).maybeSingle()
+        if (owner.error) throw owner.error
+        if (!owner.data) { if (active) setNotice('บัญชีนี้ไม่มีสิทธิ์ใช้งาน'); return }
+        const result = await supabase.from('poc_items').select(columns).order('created_at', { ascending: false }).limit(200)
+        if (result.error) throw result.error
+        if (active) { setItems(result.data); setAllowed(true); setNotice('') }
+      } catch { if (active) setNotice('โหลดข้อมูลไม่สำเร็จ ตรวจการเชื่อมต่อแล้วลองใหม่') }
+      finally { if (active) setLoading(false) }
     }
-
-    if (editingId) {
-      setItems((current) => current.map((item) => item.id === editingId ? { ...item, description: cleanDescription, amount: cleanAmount } : item))
-      setNotice('แก้ไขรายการจำลองแล้ว')
-    } else {
-      setItems((current) => [...current, { id: crypto.randomUUID(), description: cleanDescription, amount: cleanAmount }])
-      setNotice('เพิ่มรายการจำลองแล้ว')
+    void load()
+    return () => { active = false }
+  }, [userId, reload])
+  useEffect(() => {
+    if (pendingDelete) dialog.current?.showModal()
+    else dialog.current?.close()
+  }, [pendingDelete])
+  function reset() { setDescription(''); setAmount(''); setEditing(null) }
+  async function save(event: React.FormEvent) {
+    event.preventDefault()
+    if (lock.current || !allowed) return
+    const clean = description.trim(), value = amount.trim()
+    // POC cap avoids unsafe large decimal numbers. Full ledger needs decimal transport.
+    if (!clean || clean.length > 200 || !/^\d{1,9}(\.\d{1,2})?$/.test(value) || Number(value) <= 0) {
+      setNotice('กรอกรายละเอียด และจำนวนเงินมากกว่า 0 สูงสุด 999,999,999.99 ทศนิยมไม่เกิน 2 ตำแหน่ง (ไม่ใส่ comma)'); return
     }
-    resetForm()
+    lock.current = true; setBusy(true)
+    try {
+      const query = editing
+        ? supabase.from('poc_items').update({ description: clean, amount: value }).eq('id', editing.id).eq('description', editing.description).eq('amount', editing.amount)
+        : supabase.from('poc_items').insert({ id: crypto.randomUUID(), owner_id: userId, description: clean, amount: value })
+      const { data, error } = await query.select(columns).single()
+      if (error) throw error
+      setItems(current => editing ? current.map(row => row.id === data.id ? data : row) : [data, ...current])
+      reset(); setNotice('บันทึกลงฐานข้อมูลแล้ว')
+    } catch { setNotice('ยังยืนยันการบันทึกไม่ได้ อาจมีการแก้ไขจากอีกหน้า กรุณาโหลดข้อมูลใหม่ก่อนลองซ้ำ') }
+    finally { lock.current = false; setBusy(false) }
   }
-
-  function edit(item: MockTransaction) {
-    setDescription(item.description)
-    setAmount(item.amount)
-    setEditingId(item.id)
-    setNotice('กำลังแก้ไขรายการ')
+  async function remove() {
+    if (!pendingDelete || lock.current) return
+    lock.current = true; setBusy(true)
+    try {
+      const { data, error } = await supabase.from('poc_items').delete().eq('id', pendingDelete.id).eq('description', pendingDelete.description).eq('amount', pendingDelete.amount).select('id').single()
+      if (error) throw error
+      setItems(current => current.filter(row => row.id !== data.id))
+      if (editing?.id === data.id) reset()
+      setNotice('ลบรายการทดสอบแล้ว'); setPendingDelete(null)
+    } catch { setNotice('ยังยืนยันการลบไม่ได้ กรุณาโหลดข้อมูลใหม่เพื่อตรวจสอบ'); setPendingDelete(null) }
+    finally { lock.current = false; setBusy(false) }
   }
-
-  function confirmDelete() {
-    if (!pendingDelete) return
-    setItems((current) => current.filter((item) => item.id !== pendingDelete))
-    setPendingDelete(null)
-    setNotice('ลบรายการจำลองแล้ว')
-  }
-
-  return (
-    <main>
-      <header>
-        <p className="eyebrow">Technical POC · Not production</p>
-        <h1>รายการจำลอง</h1>
-        <p>พิสูจน์วงจร Add → Edit → Delete พร้อมยืนยันการลบ</p>
-      </header>
-
-      <section className="card" aria-label="แบบฟอร์มรายการจำลอง">
-        <label>
-          รายละเอียด
-          <input aria-label="รายละเอียด" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="เช่น ค่าแม่บ้าน" />
-        </label>
-        <label>
-          จำนวนเงิน
-          <input aria-label="จำนวนเงิน" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="1,500" />
-        </label>
-        <div className="actions">
-          <button type="button" onClick={save}>{editingId ? 'บันทึกการแก้ไข' : 'เพิ่มรายการ'}</button>
-          {editingId && <button type="button" className="secondary" onClick={resetForm}>ยกเลิกแก้ไข</button>}
-        </div>
-        <p aria-live="polite" className="notice">{notice}</p>
+  return <>
+    <p role="status" className="notice">{loading ? 'กำลังโหลดข้อมูล…' : notice}</p>
+    <button className="secondary" disabled={loading || busy} onClick={() => { reset(); setReload(n => n + 1) }}>โหลดข้อมูลใหม่</button>
+    {allowed && <>
+      <form className="card" onSubmit={save}><fieldset disabled={busy}>
+        <legend>{editing ? 'แก้ไขรายการทดสอบ' : 'เพิ่มรายการทดสอบ'}</legend>
+        <label>รายละเอียด<input required maxLength={200} value={description} onChange={e => setDescription(e.target.value)} /></label>
+        <label>จำนวนเงิน<input required inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="เช่น 125.50" /></label>
+        <div className="actions"><button>{busy ? 'กำลังบันทึก…' : editing ? 'บันทึกการแก้ไข' : 'เพิ่มรายการ'}</button>
+          {editing && <button type="button" className="secondary" onClick={reset}>ยกเลิกแก้ไข</button>}</div>
+      </fieldset></form>
+      <section className="card" aria-label="รายการที่บันทึก"><h2>รายการที่บันทึก ({items.length})</h2>
+        <small>แสดงสูงสุด 200 รายการล่าสุด · รีเฟรชหน้าแล้วข้อมูลยังอยู่</small>
+        {!items.length ? <p className="empty">ยังไม่มีรายการทดสอบ</p> : <ul>{items.map(item => <li key={item.id}>
+          <span><strong>{item.description}</strong><small>{item.amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท</small></span>
+          <span className="row-actions"><button disabled={busy} className="secondary" onClick={() => { setEditing(item); setDescription(item.description); setAmount(String(item.amount)) }}>แก้ไข</button>
+            <button disabled={busy} className="danger" onClick={() => setPendingDelete(item)}>ลบ</button></span>
+        </li>)}</ul>}
       </section>
-
-      <section className="card" aria-label="รายการที่บันทึก">
-        <h2>รายการที่บันทึก ({items.length})</h2>
-        {items.length === 0 ? <p className="empty">ยังไม่มีรายการจำลอง</p> : (
-          <ul>
-            {items.map((item) => <li key={item.id}>
-              <span><strong>{item.description}</strong><small>{item.amount} บาท</small></span>
-              <span className="row-actions">
-                <button type="button" className="secondary" onClick={() => edit(item)}>แก้ไข</button>
-                <button type="button" className="danger" onClick={() => setPendingDelete(item.id)}>ลบ</button>
-              </span>
-            </li>)}
-          </ul>
-        )}
-      </section>
-
-      {pendingDelete && <div className="dialog-backdrop" role="presentation">
-        <section className="dialog" role="dialog" aria-modal="true" aria-label="ยืนยันการลบ">
-          <h2>ลบรายการนี้?</h2>
-          <p>การทดสอบนี้จะลบจากรายการจำลองเท่านั้น</p>
-          <div className="actions">
-            <button type="button" className="secondary" onClick={() => setPendingDelete(null)}>ยกเลิก</button>
-            <button type="button" className="danger" onClick={confirmDelete}>ยืนยันลบ</button>
-          </div>
-        </section>
-      </div>}
-    </main>
-  )
+    </>}
+    <dialog ref={dialog} className="dialog" aria-labelledby="delete-title" onCancel={e => { if (busy) e.preventDefault(); else setPendingDelete(null) }}>
+      <h2 id="delete-title">ลบรายการทดสอบนี้?</h2><p>{pendingDelete?.description}</p><p>รายการนี้จะถูกลบจากฐานข้อมูล POC</p>
+      <div className="actions"><button autoFocus className="secondary" disabled={busy} onClick={() => setPendingDelete(null)}>ยกเลิก</button>
+        <button className="danger" disabled={busy} onClick={remove}>{busy ? 'กำลังลบ…' : 'ยืนยันลบ'}</button></div>
+    </dialog>
+  </>
 }
 
 createRoot(document.getElementById('root')!).render(<App />)

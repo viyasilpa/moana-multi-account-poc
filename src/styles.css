@@ -22,4 +22,11 @@ li:first-child { border-top: 0; padding-top: 0; }
 small { display: block; margin-top: 4px; color: #627064; }
 .dialog-backdrop { position: fixed; inset: 0; display: grid; place-items: end center; padding: 16px; background: rgb(0 0 0 / 35%); }
 .dialog { width: min(100%, 500px); background: white; border-radius: 16px; padding: 20px; }
+dialog.dialog { border: 1px solid #bfc8ba; }
+dialog::backdrop { background: rgb(0 0 0 / 35%); }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-weight: 700; }
+button:disabled { opacity: .55; cursor: wait; }
+button:focus-visible, input:focus-visible { outline: 3px solid #5c9770; outline-offset: 3px; }
+strong { overflow-wrap: anywhere; }
 @media (min-width: 600px) { .dialog-backdrop { place-items: center; } }
