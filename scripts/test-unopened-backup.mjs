@@ -8,7 +8,7 @@ import {storageStub,restoreIsolated} from '../src/restore-core.ts'
 import {packBackup,unpackBackup} from '../src/backup-format.ts'
 
 const owner='00000000-0000-4000-8000-000000000001'
-const migrations=['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql','006_backup_utc.sql','007_lossless_backup_json.sql']
+const migrations=['001_core.sql','002_commands.sql','003_masters.sql','004_read_api.sql','005_documents_backup.sql','006_backup_utc.sql','007_lossless_backup_json.sql','008_command_constraint_checks.sql']
 const sql=await Promise.all(migrations.map(f=>readFile(new URL('../db/accounting/'+f,import.meta.url),'utf8')))
 const db=new PGlite(),directory=await mkdtemp(join(tmpdir(),'moana-unopened-'))
 let passed=0

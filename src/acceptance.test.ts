@@ -1,8 +1,13 @@
 import {it,expect,vi} from 'vitest'
 import {waitFor} from '@testing-library/react'
 import page from '../acceptance.html?raw'
+import hostedBackup from '../public/stage5-hosted-backup.json?raw'
 
-it('prepares isolated backup and verifies selected files without live services',async()=>{
+it.each([false,true])('prepares and reopens files without live services (hosted fixture: %s)',async(hosted)=>{
+ vi.resetModules()
+ history.replaceState({},'',hosted?'/?suite=hosted':'/')
+ const originalFetch=globalThis.fetch
+ if(hosted)vi.stubGlobal('fetch',vi.fn((input:RequestInfo|URL,init?:RequestInit)=>String(input)==='/stage5-hosted-backup.json'?Promise.resolve(new Response(hostedBackup)):originalFetch(input,init)))
  document.body.innerHTML=page.match(/<body>([\s\S]*)<script type="module"/)![1]
  Object.defineProperty(window,'isSecureContext',{value:true,configurable:true})
  const blobs:Blob[]=[]
@@ -25,4 +30,5 @@ it('prepares isolated backup and verifies selected files without live services',
  expect(document.getElementById('results')!.textContent).toContain('ไฟล์ไม่ตรง')
  expect(document.getElementById('summary')!.textContent).toContain('ยังไม่ครบ')
  vi.restoreAllMocks()
+ vi.unstubAllGlobals()
 },60000)

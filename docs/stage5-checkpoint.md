@@ -1,5 +1,61 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## 2026-09-20: hosted synthetic acceptance and two real defects
+
+Owner explicitly approved synthetic opening in a separate test environment.
+Created `moana-stage5-synthetic-test` (`bpedekosireooxrsaerp`) in the existing
+organization; the cost tool quoted $0/month. The original application project
+was not modified. Two synthetic Auth users were created without sending email;
+all entities, openings, transactions and files are invented test data.
+
+Hosted HTTP acceptance passed after applying source patch 008 to the test
+project: private upload/finalize/download hash, denied overwrite, anonymous and
+nonowner denial, same-key concurrent HTTP idempotency, conflicting-payload
+rejection, concurrent edits yielding one success and one stale_revision, and
+attachment retention across edit/void/archive. A 60-second signed URL returned
+HTTP 400 with an exp-claim timestamp failure after expiry; a fresh URL still
+returned HTTP 200 and the original bytes. See stage5-hosted-results.json.
+
+The first hosted post exposed a deferred-trigger privilege failure at HTTP
+commit. Patch 008 drains only the balance constraint triggers inside the
+existing owner-checked posting command, then restores deferred mode. It does
+not add SECURITY DEFINER functions/triggers or widen grants; authenticated
+users still cannot execute validate_batch or insert ledger lines directly.
+See https://www.postgresql.org/docs/17/sql-set-constraints.html
+
+Stale-revision conflicts previously used SQLSTATE 40001. In the hosted race the
+loser timed out while the winning edit committed; the exact internal timeout
+mechanism is not established. Mapping this expected client conflict to PT409
+made the repeated hosted race return stale_revision immediately and correctly.
+Both posting and attachment reservation now use PT409. See
+https://docs.postgrest.org/en/stable/references/errors.html#raise-errors-with-http-status-codes
+
+Full hosted synthetic backup contains 5 transactions, 11 revisions, 14 batches,
+28 lines and 2 completed/archived file copies. Local restore matched every table
+exactly; report amounts and rows match after normalizing unordered report arrays.
+The public fixture contains ONLY the synthetic snapshot and file bytes, never
+passwords/tokens. `npm run test:hosted-backup` reproduces this check.
+
+Verification: 16 mounted UI tests, 79 engine checks, 42 stage-5 checks, 9 unopened
+checks, 2 acceptance-page integration scenarios and build/typecheck passed.
+Temporary runner required JWT plus a random secret, was limited to the test
+project and a one-hour deadline, and allowed bootstrap once. It has now been
+replaced with a JWT-protected HTTP 410 response. Temporary password and signed
+URL state was removed. The two synthetic users and evidence remain in the
+isolated free project. RLS on runner state intentionally has no client policies;
+the test project's leaked-password-protection warning remains.
+
+### Still open
+
+- Owner Safari save/reopen of the full hosted fixture: use
+  `/acceptance.html?suite=hosted`; the earlier unopened file check is not this.
+- Physical iPad controls and actual two-device UI observation. The backend race
+  evidence is overlapping HTTP calls from two signed-in clients, not two devices.
+- Patch 008 is tested in the sandbox and stored in this branch ONLY; it has NOT
+  been applied to the original app database or merged to main. Release promotion
+  must include the SQL fix, not just the frontend.
+- Actual operational start date/opening remains an owner decision.
+
 ## Owner-observed Safari acceptance — 2026-09-20
 
 The owner returned the acceptance v1 report at 2026-09-20T05:13:06.522Z

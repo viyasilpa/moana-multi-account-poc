@@ -2,7 +2,7 @@
 import {PGlite} from '@electric-sql/pglite'
 import {storageStub,restoreIsolated} from './restore-core'
 import {digest,packBackup,unpackBackup} from './backup-format'
-import type {Snapshot} from './backup-format'
+import type {Snapshot,BackupPayload} from './backup-format'
 import core from '../db/accounting/001_core.sql?raw'
 import commands from '../db/accounting/002_commands.sql?raw'
 import masters from '../db/accounting/003_masters.sql?raw'
@@ -10,11 +10,14 @@ import reads from '../db/accounting/004_read_api.sql?raw'
 import documents from '../db/accounting/005_documents_backup.sql?raw'
 import utc from '../db/accounting/006_backup_utc.sql?raw'
 import lossless from '../db/accounting/007_lossless_backup_json.sql?raw'
+import commitChecks from '../db/accounting/008_command_constraint_checks.sql?raw'
 import './styles.css'
 
-const sql=[core,commands,masters,reads,documents,utc,lossless]
+const hosted=new URLSearchParams(location.search).get('suite')==='hosted'
+const sql=[core,commands,masters,reads,documents,utc,lossless,commitChecks]
 const element=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T
 const prepare=element<HTMLButtonElement>('prepare'),status=element('status')
+if(hosted){document.querySelector('header p:not(.eyebrow)')!.textContent='ชุดบัญชีและไฟล์แนบสมมติจากพื้นที่ทดสอบออนไลน์ ไม่แตะบัญชีจริง';document.querySelector('section:last-of-type p')!.textContent='ทดสอบออนไลน์ผ่านแล้ว: รับส่งไฟล์ สิทธิ์ ลิงก์หมดอายุ และคำขอแก้ไขพร้อมกัน หน้านี้ตรวจการบันทึกไฟล์สำรองครบชุดบนอุปกรณ์ของคุณ';document.querySelector('h1')!.textContent='ตรวจไฟล์สำรองครบชุด'}
 const results=new Map<string,string>(),urls:string[]=[]
 let expected:Snapshot|undefined,backupHash='',imageHash='',busy=false
 const backupCheck='บันทึกและเปิดไฟล์สำรอง JSON กลับมา',imageCheck='บันทึกและเปิดภาพ PNG กลับมา'
@@ -25,7 +28,7 @@ function render() {
  const completed=results.get(backupCheck)==='ผ่าน'&&results.get(imageCheck)==='ผ่าน'
  element('summary').textContent=completed?'ผ่านการบันทึกและเปิดไฟล์สองชนิดในเบราว์เซอร์นี้ ยังไม่ใช่ผ่านขั้น 5 ทั้งหมด':'ยังไม่ครบ — ทำตามขั้นตอนและดูรายการด้านบน'
  element<HTMLButtonElement>('copy').disabled=results.size===0
- element<HTMLTextAreaElement>('report').value=['Moana browser acceptance v1',new Date().toISOString(),navigator.userAgent,...Array.from(results,([name,value])=>`${value}: ${name}`),'ยังไม่ยืนยัน: hosted Storage / URL expiry / multi-device concurrency'].join('\n')
+ element<HTMLTextAreaElement>('report').value=[hosted?'Moana browser acceptance v2 — hosted synthetic backup':'Moana browser acceptance v1',new Date().toISOString(),navigator.userAgent,...Array.from(results,([name,value])=>`${value}: ${name}`),hosted?'ผลนี้ยืนยันเฉพาะอุปกรณ์ที่ทดสอบ ไม่แทนการกดพร้อมกันบนสองอุปกรณ์':'ยังไม่ยืนยัน: hosted Storage / URL expiry / multi-device concurrency'].join('\n')
 }
 function link(id:string,bytes:Blob) {const url=URL.createObjectURL(bytes);urls.push(url);element<HTMLAnchorElement>(id).href=url}
 function assert(value:unknown,message:string):asserts value {if(!value)throw Error(message)}
@@ -36,6 +39,13 @@ prepare.addEventListener('click',async()=>{
  let db:PGlite|undefined
  try {
   assert(window.isSecureContext&&crypto.subtle,'ต้องเปิดผ่านลิงก์ HTTPS')
+  let source:BackupPayload
+  if(hosted){
+   const response=await fetch('/stage5-hosted-backup.json');assert(response.ok,'โหลดชุดทดสอบไม่สำเร็จ')
+   source=await unpackBackup(await response.text());expected=source.snapshot
+   assert(expected.tables.entities.every(e=>String(e.name).startsWith('STAGE5 SYNTHETIC ')),'ต้องเป็นข้อมูลสมมติเท่านั้น')
+   record('ชุดสมมติจากออนไลน์ พร้อมไฟล์แนบ '+source.files.length+' ไฟล์','ผ่าน')
+  }else{
   db=new PGlite();const owner='00000000-0000-4000-8000-000000000001'
   await db.exec(`create role anon;create role authenticated;create schema auth;
    create table auth.users(id uuid primary key);
@@ -52,10 +62,12 @@ prepare.addEventListener('click',async()=>{
   assert(expected.tables.settings[0].start_date===null&&expected.tables.settings[0].opening_finalized_at===null,'พบยอดเปิดที่ไม่ควรมี')
   assert(expected.counts.transactions===0&&expected.counts.lines===0,'พบรายการที่ไม่ควรมี')
   record('ฐานข้อมูลสมมติ ไม่มีรายการและไม่มีการตั้งยอดเปิด','ผ่าน')
-  const text=await packBackup({snapshot:expected,files:[]})
+  source={snapshot:expected,files:[]}
+  }
+  const text=await packBackup(source)
   const roundtrip=await unpackBackup(text);assert(JSON.stringify(roundtrip.snapshot)===JSON.stringify(expected),'ข้อมูลสำรองไม่ตรง')
   const restored=await restoreIsolated(roundtrip.snapshot,sql)
-  assert(restored.report===null,'สถานะบัญชีหลังคืนข้อมูลผิด');record('กู้คืนในฐานข้อมูลแยกและเทียบข้อมูลครบทุกตาราง','ผ่าน')
+  assert(hosted?restored.report!==null:restored.report===null,'สถานะบัญชีหลังคืนข้อมูลผิด');record('กู้คืนในฐานข้อมูลแยกและเทียบข้อมูลครบทุกตาราง','ผ่าน')
   const corrupt=JSON.parse(text);corrupt.data+=' '
   await reject(()=>unpackBackup(JSON.stringify(corrupt)),/backup_integrity_failed/);record('ปฏิเสธไฟล์สำรองถูกแก้ไข','ผ่าน')
   backupHash=await digest(new TextEncoder().encode(text));link('backup-link',new Blob([text],{type:'application/json'}))
