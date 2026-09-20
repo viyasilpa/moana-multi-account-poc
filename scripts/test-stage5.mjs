@@ -21,8 +21,16 @@ try {
  // Keep the synthetic regression fixture in this disposable DB, never on Supabase.
  await db.exec((await readFile(new URL('../db/accounting/test_engine.sql',import.meta.url),'utf8')).replace(/rollback;\s*$/,'commit;'))
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
- const tx=(await db.query("select id,current_revision from accounting.transactions where kind='expense' and status='posted' limit 1")).rows[0]
+ const entry=(await db.query(`select jsonb_build_object('kind','expense','date',(now() at time zone 'Asia/Bangkok')::date,
+ 'amount','1.25','funding','money','money_account_id',b.id,'for_entity_id',b.entity_id,'category_account_id',c.id) data
+ from accounting.accounts b join accounting.accounts c on c.entity_id=b.entity_id
+ where b.kind='bank' and b.active and c.kind='expense' and c.active limit 1`)).rows[0].data
  await db.exec('set role authenticated')
+ const create={key:crypto.randomUUID(),action:'create',entry}
+ // PGlite queues these calls: tests caller overlap/idempotency, NOT multi-session MVCC.
+ const duplicated=await Promise.all([rpc('accounting_post',create),rpc('accounting_post',create)])
+ assert.deepEqual(duplicated[0],duplicated[1]);passed++
+ const tx={id:duplicated[0].transaction_id,current_revision:1}
  const bytes=new TextEncoder().encode('%PDF-1.4\n% synthetic attachment test\n%%EOF'),sha256=await digest(bytes)
  const q={key:crypto.randomUUID(),action:'reserve',transaction_id:tx.id,expected_revision:tx.current_revision,filename:'เอกสารทดสอบ.pdf',mime:'application/pdf',size:bytes.length,sha256}
  const a=await rpc('accounting_attachment',q)
@@ -48,6 +56,15 @@ try {
  await rejected(()=>db.query('update accounting.attachments set filename=$1 where id=$2',['overwrite',a.id]),/permission denied/)
  const access=await db.query('select accounting.attachment_access($1,true) upload,accounting.attachment_access($1,false) read',[a.path])
  ok(!access.rows[0].upload&&access.rows[0].read,'ready files readable but no further uploads')
+ const competing=await Promise.allSettled(['2.25','3.25'].map(amount=>rpc('accounting_post',{key:crypto.randomUUID(),action:'edit',transaction_id:tx.id,expected_revision:1,reason:'Synthetic overlapping edit',entry:{...entry,amount}})))
+ ok(competing.filter(x=>x.status==='fulfilled').length===1&&competing.filter(x=>x.status==='rejected'&&x.reason.code==='40001').length===1,'overlapping queued edits reject stale revision')
+ const listed=async()=> (await db.query('select public.accounting_attachment_list($1) data',[tx.id])).rows[0].data
+ let retained=await listed()
+ ok(retained.length===1&&retained[0].revision===1&&retained[0].path===a.path,'edit retains attachment on original revision')
+ await rpc('accounting_post',{key:crypto.randomUUID(),action:'void',transaction_id:tx.id,expected_revision:2,reason:'Synthetic void retention'})
+ retained=await listed()
+ ok(retained.length===1&&retained[0].state==='ready'&&retained[0].path===a.path,'void preserves completed attachment and path')
+ await rejected(()=>rpc('accounting_attachment',{...q,key:crypto.randomUUID(),expected_revision:3}),/posted_transaction_required/)
  const archived=await rpc('accounting_attachment',{key:crypto.randomUUID(),action:'archive',id:a.id,reason:'Synthetic retention test'})
  ok(archived.state==='archived','archive preserves file')
  await db.exec("set timezone='Asia/Bangkok'")

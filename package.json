@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
-    "test:ui": "vitest run src/AccountingApp.test.tsx --environment jsdom",
+    "test:ui": "vitest run src/AccountingApp.test.tsx src/AttachmentFlow.test.tsx --environment jsdom",
     "test": "npm run test:ui && node scripts/test-ledger-format.mjs && node scripts/test-accounting.mjs && node scripts/test-stage5.mjs"
   },
   "dependencies": {

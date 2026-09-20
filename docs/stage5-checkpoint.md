@@ -1,5 +1,31 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Follow-up: file workflow and retention
+
+Owner-supplied Safari screenshot confirms a downloaded JSON was selected and
+rehearsed successfully: zero transactions, zero lines, zero attachments, live
+data unchanged. This closes the empty-ledger Safari save/reopen check only.
+
+The mounted React suite now has 16 checks. Seven new production-component tests
+use synthetic SDK transport (no hosted service calls): normal non-overwriting
+upload, lost upload response without a second upload, identical reservation-key
+replay after an unknown result, double-tap suppression, pending upload finalize
+after remount, reason-required archive / 60-second signed-URL request, and JSON
+backup including archived bytes with corrupt download rejected.
+
+The stage-5 database suite now has 42 checks. It additionally verifies an
+attachment remains linked to revision 1 after edit and void, and rejects a new
+reservation on a void transaction. Overlapping same-key and stale-edit requests
+are tested against PGlite's queued execution. This is NOT a claim of concurrent
+Postgres sessions or two-device race testing. Existing 79 engine checks remain.
+
+The agent's remote browser still times out while listing tabs. Earlier evidence
+reported an active native confirmation blocking closure. This suggests a stuck
+remote session, not an outage of the user's Safari or GitHub/Supabase/Vercel;
+the complete root cause is unconfirmed. No reconnection of those services,
+permission weakening, new test owner, real opening, or live data change was made.
+Hosted Storage HTTP and real concurrent-device acceptance remain open gates.
+
 Implementation checkpoint, not production/device acceptance. No operational
 opening date or balances are invented. Previous source checkpoint:
 `e6e91b3166ba1844a4b3a5e512ef7245ad3bb732`.
