@@ -14,6 +14,7 @@ export function AccountingApp({userId,api=liveApi,demo=false}:Props) {
  const [pending,setPending]=useState<{request:Command;method:string}|null>(()=>{try{return demo?null:JSON.parse(sessionStorage.getItem(storageKey)||'null')}catch{return null}})
  const lock=useRef(false)
  const dirty=useRef(false)
+ const [requestedTab,setRequestedTab]=useState<string|null>(null)
  useEffect(()=>{let active=true;api<Catalog>('accounting_catalog').then(c=>{if(active)setCatalog(c)}).catch(e=>{if(active)setNotice(errorText(e))});return()=>{active=false}},[api,version])
  async function execute(p:{request:Command;method:string}):Promise<boolean> {
   if(lock.current)return false
@@ -42,11 +43,13 @@ export function AccountingApp({userId,api=liveApi,demo=false}:Props) {
  }
  if(!catalog)return <section className="card"><p role="status">{notice||'กำลังโหลดบัญชี…'}</p><button onClick={()=>setVersion(v=>v+1)}>ลองโหลดใหม่</button></section>
  const isSetup=!catalog.settings.start_date
- const navigate=(next:string)=>{if(dirty.current&&!window.confirm('มีข้อมูลที่ยังไม่บันทึก ต้องการออกจากแบบฟอร์มหรือไม่?'))return;dirty.current=false;setNotice('');setTab(next);setEditing(null);setRefund(null)}
+ const finishNavigate=(next:string)=>{dirty.current=false;setRequestedTab(null);setNotice('');setTab(next);setEditing(null);setRefund(null)}
+ const navigate=(next:string)=>{if(dirty.current){setRequestedTab(next);return}finishNavigate(next)}
  return <div className="ledger-app">
   {demo&&<p className="demo-banner">โหมดสาธิต · ข้อมูลสมมติในหน้านี้เท่านั้น · รีเฟรชแล้วเริ่มใหม่ · ไม่ส่ง Supabase</p>}
   <div className="toolbar"><span>{catalog.entities.length} กิจการ · THB</span><button className="secondary" disabled={busy} onClick={()=>navigate('ตั้งค่า')}>ตั้งค่า / ยอดยกมา</button></div>
   <p role="status" className="notice">{notice}</p>
+  {requestedTab&&<section className="review" role="alert"><p>มีข้อมูลที่ยังไม่บันทึก ต้องการออกจากแบบฟอร์มหรือไม่?</p><div className="toolbar"><button disabled={busy||!!pending} onClick={()=>finishNavigate(requestedTab)}>ออกโดยไม่บันทึก</button><button className="secondary" onClick={()=>setRequestedTab(null)}>กรอกต่อ</button></div></section>}
   {pending&&<section className="card"><strong>มีคำขอรอยืนยันผล</strong><p>ใช้คำขอเดิมเพื่อป้องกันบันทึกซ้ำ แม้ครั้งก่อนบันทึกสำเร็จแต่การเชื่อมต่อขาด</p><button disabled={busy} onClick={()=>void execute(pending)}>ตรวจสอบ / ส่งคำขอเดิม</button></section>}
   <fieldset disabled={busy||!!pending} className="workspace" onInputCapture={e=>{if((e.target as HTMLElement).closest('form')){dirty.current=true;setNotice('')}}}>
    {isSetup ? <Opening catalog={catalog} send={send}/> : <>

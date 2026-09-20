@@ -44,7 +44,15 @@ was set by the agent. Existing POC rows/files and Auth configuration are preserv
   Desktop layout visually inspected. Real iPad/Safari behavior is not claimed.
 - An automated CSV download-event wait timed out. Export changed to a native
   persistent download link. CSV contents/escaping tested independently; browser
-  file-save verification is recorded separately after final deployment.
+  final native link was clicked and its download filename verified, but the
+  browser's saved file was not retrieved. File-save acceptance on Safari remains.
+- Final source `04dc12f008b8c681755fb4410c048f6a96e33338` deployed READY as
+  `dpl_3sgGHPE3pi5cG1SJ7pfUtxo8TfhH`; final demo zero-opening and report smoke passed.
+  A native unsaved-draft confirmation blocked the automated browser connection;
+  it was replaced with an inline confirmation, avoiding browser-modal dependency.
+  The replacement passes typecheck/build but browser retest is still pending.
+- Final live database check: zero accounting transactions/lines, null start date,
+  one preserved POC row. Read migration: `20260920021414 accounting_read_api`.
 
 ## Recovery and next release gates
 
