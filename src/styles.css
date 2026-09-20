@@ -55,3 +55,4 @@ summary {cursor:pointer;font-weight:650;min-height:36px;}
 dialog {max-width:min(94vw,480px);border:1px solid #bfc8ba;border-radius:16px;padding:24px;}
 dialog button {margin:4px;}
 .demo-banner {padding:14px;background:#fff0cf;border:1px solid #d9a853;border-radius:12px;}
+.export-link {display:inline-block;padding:12px 14px;border-radius:10px;background:#e8eee6;color:#243429;font-weight:700;text-decoration:none;}

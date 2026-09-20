@@ -11,9 +11,14 @@ describe current connector or POC status.
 Stage 3 accounting-engine backend checkpoint is implemented in `db/accounting/`:
 70 integration checks passed locally and on Supabase (fixtures rolled back).
 See `docs/accounting-checkpoint.md` for exact verification and remaining scope.
-The deployed website still shows the POC UI, not the accounting application.
+Stage 4 adds the accounting screens: explicit payer/beneficiary selection, named
+receivables/payables, opening setup, immutable corrections/voids, linked refunds,
+balances, filtered P&L, GL drilldown and CSV. The legacy POC is a separate collapsed
+tool. See `docs/stage4-checkpoint.md` for observed verification and release gaps.
+The owner must supply the actual starting date and opening balances; none are assumed.
 
-Developer checks: `npm ci`, `npm run build`, `node scripts/test-accounting.mjs`.
+Developer checks (Node 24): `npm ci`, `npm run build`, `node scripts/test-accounting.mjs`,
+`node scripts/test-ledger-format.mjs`.
 Never commit private business specifications, account labels, real financial data,
 owner identity or credentials to this public repository.
 
