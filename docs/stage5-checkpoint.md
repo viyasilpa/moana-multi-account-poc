@@ -1,5 +1,16 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Two-device UI prepared — 2026-09-20
+
+Owner has Mac Safari and Android; physical iPad remains untested. Dedicated
+`/device.html` mounts the real app against the isolated synthetic project only.
+It prepares the same idempotent test expense on both devices and provides steps
+for stale-edit rejection. A discovered PT409 pending-state UI defect is fixed;
+17 mounted UI checks and build/typecheck passed. Owner explicitly approved the
+synthetic password setup after its initial approval rejection. Login verified;
+the setup function was replaced with HTTP 410 immediately. See
+`stage5-device-test.md`. Actual two-device observations are still pending.
+
 ## Owner-observed full hosted backup on Safari — 2026-09-20
 
 Owner returned acceptance v2 at 2026-09-20T05:44:59.468Z (12:44 Thailand),

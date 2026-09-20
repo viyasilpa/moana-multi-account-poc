@@ -18,15 +18,18 @@ leaving a stale edit in pending state. The fix clears pending state for PT409,
 retains the draft and enables navigation to reload. Network-unknown errors still
 preserve the exact request key. A mounted regression covers this distinction.
 
-BLOCKER: no usable synthetic-owner password is available for the owner to log in.
-Automatic approval review rejected deploying a JWT-and-random-secret-protected,
-single-use setup Edge Function that would rotate that test user's password.
-Reason: existing synthetic testing approval did not clearly authorize the exact
-persistent privileged credential-management mechanism. It was NOT deployed and
-the password was NOT changed. No alternative credential-changing path was tried.
-Explicit approval is required before proceeding with that mechanism. Scope must
-remain this synthetic user/project, with the setup endpoint disabled immediately
-after verification. Original production credentials/data are untouched.
+RESOLVED — 2026-09-20: owner explicitly approved the temporary credential setup
+after automatic approval review initially rejected it. A JWT-and-random-secret
+protected, single-use, one-hour setup function rotated ONLY the synthetic owner
+password. Password login and the synthetic catalog check succeeded. The test
+verification session was signed out. The setup function was immediately replaced
+with a JWT-protected HTTP 410 response (version 2); it contains no credentials or
+admin operations. Original production credentials/data are untouched. No password
+or setup secret is stored in this repository. Credentials are delivered privately
+to the owner in the conversation for the two-device test.
+
+Build/typecheck and 17 mounted UI checks passed, including the PT409 navigation
+regression. Deployment cb4629b98943092cf2513b3bb9dfce4ab114883d is READY.
 
 Do not mark the device flow passed until authenticated setup and owner observations
 are complete. Physical iPad remains untested; Mac + Android is the available pair.
