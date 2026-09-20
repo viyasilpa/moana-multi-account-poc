@@ -1,5 +1,35 @@
 # Stage 4 — accounting UI checkpoint
 
+## Follow-up verification
+
+Stage 4 implementation and automated regression checkpoint is complete. This is
+not full browser/device sign-off or permission to enter live operational data.
+No owner action is needed for development to continue into stage 5.
+
+`npm run test:ui`: seven real React component tests passed using jsdom and
+synthetic RPC responses, with live Supabase calls explicitly forbidden:
+
+1. Inline continue/discard prompt preserves the draft until explicit discard;
+   no native `window.confirm` invocation.
+2. Explicit payer/beneficiary command payload, successful form reset.
+3. Unknown network outcome survives remount; retry uses identical key and payload.
+4. Explicit SQL rollback keeps the form editable and clears pending retry.
+5. Unavailable retry storage prevents sending a mutation.
+6. Date input synchronization before submit.
+7. Native download link filename, actual CSV Blob contents (period not cumulative
+   amount), formula-name escaping, and URL cleanup.
+
+The exact-money/CSV unit suite and all 79 SQL regressions were rerun and passed;
+TypeScript/Vite production build passed. Test dependencies are pinned and dev-only.
+Run all reproducible checks with `npm test` (Node 24).
+
+The Cloud browser remained blocked by an old native confirmation: tab listing and
+dialog dismissal timed out, while closing the tab reported that the confirmation
+was still active. Component verification above is NOT claimed as a browser retest.
+Actual Safari saved-file/open-file behavior and final deployed inline interaction
+remain device/browser release checks. They do not require owner input to continue
+implementing the separate stage-5 backup and release work.
+
 Development only; not a production certification. No actual opening date or money
 was set by the agent. Existing POC rows/files and Auth configuration are preserved.
 
@@ -50,7 +80,8 @@ was set by the agent. Existing POC rows/files and Auth configuration are preserv
   `dpl_3sgGHPE3pi5cG1SJ7pfUtxo8TfhH`; final demo zero-opening and report smoke passed.
   A native unsaved-draft confirmation blocked the automated browser connection;
   it was replaced with an inline confirmation, avoiding browser-modal dependency.
-  The replacement passes typecheck/build but browser retest is still pending.
+  The replacement passes typecheck/build and the follow-up component tests above;
+  deployed browser retest remains pending due to the browser connection issue.
 - Final live database check: zero accounting transactions/lines, null start date,
   one preserved POC row. Read migration: `20260920021414 accounting_read_api`.
 

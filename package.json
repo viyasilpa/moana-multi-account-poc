@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "check": "tsc -b --pretty false"
+    "check": "tsc -b --pretty false",
+    "test:ui": "vitest run src/AccountingApp.test.tsx --environment jsdom",
+    "test": "npm run test:ui && node scripts/test-ledger-format.mjs && node scripts/test-accounting.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",
@@ -18,7 +20,11 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0"
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "30.1.0",
+    "vitest": "5.0.1"
   }
 }

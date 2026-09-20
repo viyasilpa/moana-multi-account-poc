@@ -19,6 +19,7 @@ The owner must supply the actual starting date and opening balances; none are as
 
 Developer checks (Node 24): `npm ci`, `npm run build`, `node scripts/test-accounting.mjs`,
 `node scripts/test-ledger-format.mjs`.
+`npm test` runs the UI component, exact-format and database regression suites.
 Never commit private business specifications, account labels, real financial data,
 owner identity or credentials to this public repository.
 
