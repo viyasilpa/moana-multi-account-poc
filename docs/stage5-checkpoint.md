@@ -1,5 +1,27 @@
 # Stage 5 — evidence, backup and release checkpoint
 
+## Replacement browser route: `/acceptance.html`
+
+A separate Vite entrypoint provides a no-login, synthetic-only file acceptance
+page for the owner's Chrome/Safari. It imports no Supabase client or live app
+entrypoint. Its CSP restricts connections to its own origin for PGlite assets.
+It creates six synthetic entities in memory, leaves opening/date unset, uses
+the exact schema and production backup/restore functions, and creates native
+JSON and PNG download links. Selecting the saved JSON checks its exact hash and
+restores all tables in another isolated database. Selecting the PNG compares its
+bytes. Only files matching this page's generated hashes reach validation/restore;
+there is no upload. Refreshing starts a new fixture; use downloads from that run.
+
+`npm run test:acceptance` passed an integration scenario with real in-memory
+PGlite: preparation, both file-selection handlers, restore, and wrong-file
+rejection. The DOM and file selection were simulated in jsdom. Build/typecheck
+passed. The generated PNG's integrity was separately verified. These results
+do NOT establish actual browser downloads, physical Safari/iPad acceptance,
+hosted attachment HTTP, signed-link expiration, or multi-device concurrency.
+The owner must download/select the two files and return the page's result before
+the native-browser subset can be marked passed. The page labels the other gates
+as pending; no opening or posted transaction is created to reach those gates.
+
 ## 2026-09-20: offline path without opening a ledger
 
 Latest main was verified as `c4317f523325cc642536959ccfd8ff0ba77c19aa`.
