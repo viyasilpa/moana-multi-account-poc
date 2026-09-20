@@ -19,7 +19,7 @@ Owner previously reported successful login following password recovery. URL Conf
 
 These are observed user-session results, not an agent-operated browser test. They do not prove the persisted UI edit/cancel/delete-confirmation flow or authenticated non-owner denial. SQL authorization simulations are separate evidence, not a substitute for an actual second-user session.
 
-The approved specification explicitly requires local rendered UI interaction and fix/retest evidence before accounting implementation. That route remains blocked by browser access restrictions; no bypass or owner waiver has been performed. An explicit owner change accepting a deployed-UI verification route is needed before substituting that route for the local-browser requirement. The replacement flow must still be tested; acceptance of a limitation is not a test pass.
+On 2026-09-20 the owner explicitly approved testing on the deployed Vercel POC instead of the blocked local-browser route. This changes only the test location; it does not waive interaction, correction or retest evidence. The deployed persisted UI edit/cancel/delete-confirmation flow remains pending until observed. The primary deployed URL now renders its owner login form in the agent browser; no deployment protection or authentication was disabled or bypassed.
 
 Full accounting export/restore belongs to the accounting delivery and release gates; it is not implemented or claimed by the attachment-only backup rehearsal. Do not extend the technical POC indefinitely by treating full accounting features as POC prerequisites.
 
