@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { Attachments } from './Attachments'
+import { SystemCheck } from './SystemCheck'
 import './styles.css'
 
 type Item = { id: string; description: string; amount: number }
@@ -185,6 +186,7 @@ function Items({ userId }: { userId: string }) {
           {editing && <button type="button" className="secondary" onClick={reset}>ยกเลิกแก้ไข</button>}</div>
       </fieldset></form>
       <Attachments userId={userId} />
+      <SystemCheck userId={userId} />
       <section className="card" aria-label="รายการที่บันทึก"><h2>รายการที่บันทึก ({items.length})</h2>
         <small>แสดงสูงสุด 200 รายการล่าสุด · รีเฟรชหน้าแล้วข้อมูลยังอยู่</small>
         {!items.length ? <p className="empty">ยังไม่มีรายการทดสอบ</p> : <ul>{items.map(item => <li key={item.id}>
