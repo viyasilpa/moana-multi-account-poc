@@ -47,3 +47,25 @@ it('zero option does not bring archived zero accounts back into the status repor
  expect(screen.queryByText('Disabled party')).toBeNull()
  vi.restoreAllMocks()
 })
+it('shows PP receivables/payables from the opposite side and keeps ledger direction consistent',async()=>{
+ vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:test');vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{})
+ const ppCatalog:Catalog={...c,parties:[...c.parties,{id:'pp',name:'PP',kind:'pp',related_entity_id:null,active:true}],accounts:[...c.accounts,{id:'app',entity_id:'a',name:'PP in A',kind:'party',party_id:'pp',active:true},{id:'bpp',entity_id:'b',name:'PP in B',kind:'party',party_id:'pp',active:true}]}
+ const data={accounts:[{account_id:'app',entity_id:'a',kind:'party',opening:'-8',debit:'0',credit:'2',closing:'-10'},{account_id:'bpp',entity_id:'b',kind:'party',opening:'0',debit:'20',credit:'0',closing:'20'},{account_id:'ab',entity_id:'a',kind:'party',opening:'99',debit:'0',credit:'0',closing:'99'}],pnl:[],consolidated:{income:'0',expense:'0',net:'0'}}
+ const api:Api=async<T,>(name:string)=> (name==='accounting_gl'?{opening:'-8',closing:'-10',lines:[{id:'l',date:'2026-01-02',transaction_id:'t',revision:1,role:'original',debit:'0',credit:'2',balance:'-10'}]}:data) as T
+ render(<Reports catalog={ppCatalog} api={api} status/>)
+ await screen.findByRole('checkbox',{name:'แสดงบัญชียอดศูนย์'})
+ fireEvent.change(screen.getByRole('combobox',{name:'กิจการ'}),{target:{value:'__pp__'}})
+ expect(screen.queryByText('A to B')).toBeNull()
+ expect(screen.getByText('ค้าง PP')).toBeTruthy()
+ expect(screen.getByText('PP ค้างกิจการนี้')).toBeTruthy()
+ expect(screen.getByText('-20.00')).toBeTruthy()
+ expect(screen.getByText('ลูกหนี้ของ PP รวม').parentElement?.textContent).toContain('10.00')
+ expect(screen.getByText('เจ้าหนี้ของ PP รวม').parentElement?.textContent).toContain('20.00')
+ fireEvent.click(screen.getAllByRole('button',{name:'ดูบัญชี'})[0])
+ await screen.findByText('ยกมา 8.00 · คงเหลือ 10.00')
+ expect(screen.getByText('PP ↔ A · บัญชีแยกประเภท')).toBeTruthy()
+ fireEvent.change(screen.getByRole('combobox',{name:'กิจการ'}),{target:{value:'a'}})
+ expect(screen.getByText('-10.00')).toBeTruthy()
+ expect(screen.queryByText('ลูกหนี้ของ PP รวม')).toBeNull()
+ vi.restoreAllMocks()
+})
