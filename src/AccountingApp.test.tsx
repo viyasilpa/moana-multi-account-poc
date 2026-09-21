@@ -30,7 +30,7 @@ async function mount(api:Api) {
  const view=render(<AccountingApp userId="synthetic-user" api={api}/>);await screen.findByRole('heading',{name:'ลงรายการ'});return view
 }
 async function fillExpense(user:ReturnType<typeof userEvent.setup>) {
- await user.selectOptions(screen.getByRole('combobox',{name:'บัญชีที่จ่ายเงิน'}),'bank')
+ await user.selectOptions(screen.getByRole('combobox',{name:'จ่ายจาก'}),'bank')
  await user.selectOptions(screen.getByRole('combobox',{name:'รายการนี้เป็นของกิจการไหน'}),'e2')
  await user.selectOptions(screen.getByRole('combobox',{name:'หมวดรายจ่าย'}),'expense')
  await user.type(screen.getByRole('textbox',{name:'จำนวนเงิน (บาท)'}),'123.45')
@@ -146,5 +146,33 @@ describe('Stage 4 interaction regression',()=>{
   const text=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsText(blob!)})
   expect(text).toContain('"Demo 2","\'=Unsafe category","123.45"');expect(text).not.toContain('1023.45')
   view.unmount();expect(revoke).toHaveBeenCalledWith('blob:synthetic-export')
+ })
+})
+
+describe('Expense funding choice',()=>{
+ it('selects PP without a bank and clears an earlier bank before submitting',async()=>{
+  const user=userEvent.setup(),{api,calls}=fixture()
+  const ppApi:Api=async<T,>(name:string,args?:Record<string,unknown>)=>name==='accounting_catalog'?{...structuredClone(catalog),parties:[{id:'pp-party',name:'PP',kind:'pp',related_entity_id:null,active:true}]} as T:api<T>(name,args)
+  await mount(ppApi)
+  await user.selectOptions(screen.getByRole('combobox',{name:'จ่ายจาก'}),'bank')
+  await user.selectOptions(screen.getByRole('combobox',{name:'จ่ายจาก'}),'pp')
+  expect(screen.queryByRole('combobox',{name:'บัญชีที่จ่ายเงิน'})).toBeNull()
+  await user.selectOptions(screen.getByRole('combobox',{name:'รายการนี้เป็นของกิจการไหน'}),'e2')
+  await user.selectOptions(screen.getByRole('combobox',{name:'หมวดรายจ่าย'}),'expense')
+  await user.type(screen.getByRole('textbox',{name:'จำนวนเงิน (บาท)'}),'12.34')
+  await user.click(screen.getByRole('button',{name:'ตรวจรายการ'}))
+  await user.click(screen.getByRole('button',{name:'ยืนยันบันทึก'}))
+  expect(calls).toHaveLength(1)
+  expect(calls[0].entry?.funding).toBe('pp')
+  expect(calls[0].entry).not.toHaveProperty('money_account_id')
+ })
+ it('switches back from PP to the selected bank in the same choice',async()=>{
+  const user=userEvent.setup(),{api,calls}=fixture()
+  const ppApi:Api=async<T,>(name:string,args?:Record<string,unknown>)=>name==='accounting_catalog'?{...structuredClone(catalog),parties:[{id:'pp-party',name:'PP',kind:'pp',related_entity_id:null,active:true}]} as T:api<T>(name,args)
+  await mount(ppApi)
+  await user.selectOptions(screen.getByRole('combobox',{name:'จ่ายจาก'}),'pp')
+  await fillExpense(user)
+  expect(calls[0].entry?.funding).toBe('money')
+  expect(calls[0].entry?.money_account_id).toBe('bank')
  })
 })
