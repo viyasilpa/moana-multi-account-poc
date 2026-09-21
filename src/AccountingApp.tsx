@@ -159,10 +159,12 @@ function Activity({catalog,api,send,notice,edit,refund}:{catalog:Catalog;api:Api
 }
 
 type DetailData={revisions:{revision:number;date:string;reason:string;input:Entry}[];lines:{revision:number;date:string;role:string;entity_id:string;account_id:string;debit:string;credit:string}[]}
-function Detail({id,catalog,api}:{id:string;catalog:Catalog;api:Api}) {
- const [data,setData]=useState<DetailData|null>(null),[error,setError]=useState('')
+export function Detail({id,catalog,api}:{id:string;catalog:Catalog;api:Api}) {
+ const [data,setData]=useState<DetailData|null>(null),[error,setError]=useState(''),[history,setHistory]=useState(false)
  useEffect(()=>{let active=true;setData(null);api<DetailData>('accounting_detail',{p_id:id}).then(d=>{if(active)setData(d)}).catch(e=>{if(active)setError(errorText(e))});return()=>{active=false}},[id,api])
- return <div className="review"><h3>ประวัติและบัญชีแยกประเภท</h3>{!data?<p>{error||'กำลังโหลด…'}</p>:<>{data.revisions.map(r=><p key={r.revision}>ฉบับ {r.revision} · {r.date} · {r.input.description} {r.reason&&` · เหตุผล: ${r.reason}`}</p>)}<div className="table-scroll"><table><thead><tr><th>ฉบับ / วันที่</th><th>กิจการ / บัญชี</th><th>Dr</th><th>Cr</th></tr></thead><tbody>{data.lines.map((l,i)=><tr key={i}><td>{l.revision} · {l.date}<small>{l.role}</small></td><td>{catalog.entities.find(e=>e.id===l.entity_id)?.name}<small>{catalog.accounts.find(a=>a.id===l.account_id)?.name}</small></td><td>{money(l.debit)}</td><td>{money(l.credit)}</td></tr>)}</tbody></table></div><TransactionFiles id={id} revision={Math.max(...data.revisions.map(r=>r.revision))} api={api}/></>}</div>
+ const latest=data?Math.max(...data.revisions.map(r=>r.revision)):0
+ const visibleLines=data?.lines.filter(l=>history||(l.revision===latest&&l.role!=='reversal'))||[]
+ return <div className="review"><h3>รายละเอียดรายการ</h3>{!data?<p>{error||'กำลังโหลด…'}</p>:<><p>ฉบับล่าสุด {latest} · ตารางนี้เป็นบรรทัดบัญชีของรายการเดียว ไม่ใช่รายการรับจ่ายหลายรายการ</p><label className="check"><input type="checkbox" checked={history} onChange={e=>setHistory(e.target.checked)}/>แสดงประวัติทุกฉบับและรายการกลับ</label>{data.revisions.filter(r=>history||r.revision===latest).map(r=><p key={r.revision}>ฉบับ {r.revision} · {r.date} · {r.input.description} {r.reason&&` · เหตุผล: ${r.reason}`}</p>)}<div className="table-scroll"><table><thead><tr><th>ฉบับ / วันที่</th><th>กิจการ / บัญชี</th><th>Dr</th><th>Cr</th></tr></thead><tbody>{visibleLines.map((l,i)=><tr key={i}><td>{l.revision} · {l.date}<small>{l.role}</small></td><td>{catalog.entities.find(e=>e.id===l.entity_id)?.name}<small>{catalog.accounts.find(a=>a.id===l.account_id)?.name}</small></td><td>{money(l.debit)}</td><td>{money(l.credit)}</td></tr>)}</tbody></table></div>{!history&&!visibleLines.length&&<p>ไม่มีบรรทัดบัญชีที่มีผลในฉบับล่าสุด เปิดประวัติเพื่อดูรายการกลับ</p>}<TransactionFiles id={id} revision={Math.max(...data.revisions.map(r=>r.revision))} api={api}/></>}</div>
 }
 
 function Filters({catalog,from,to,entity,change}:{catalog:Catalog;from:string;to:string;entity:string;change:(f:string,t:string,e:string)=>void}) {
@@ -174,11 +176,11 @@ function CsvExport({name,rows,label}:{name:string;rows:string[][];label:string})
  useEffect(()=>{const next=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));setUrl(next);return()=>URL.revokeObjectURL(next)},[text])
  return url?<a className="export-link" href={url} download={name}>{label}</a>:null
 }
-function Reports({catalog,api,status}:{catalog:Catalog;api:Api;status:boolean}) {
+export function Reports({catalog,api,status}:{catalog:Catalog;api:Api;status:boolean}) {
  const [from,setFrom]=useState(catalog.settings.start_date!),[to,setTo]=useState(today()),[entity,setEntity]=useState(''),[data,setData]=useState<Report|null>(null),[error,setError]=useState(''),[account,setAccount]=useState(''),[zero,setZero]=useState(false)
  useEffect(()=>{let active=true;setData(null);setError('');api<Report>('accounting_report',{p_from:from,p_to:to}).then(d=>{if(active)setData(d)}).catch(e=>{if(active)setError(errorText(e))});return()=>{active=false}},[api,from,to])
  const selected=data?.pnl.find(p=>p.entity_id===entity)||data?.consolidated
- const rows=data?.accounts.filter(a=>(!entity||a.entity_id===entity)&&(status?['bank','cash','party']:['income','expense']).includes(a.kind)&&(zero||(status?cents(a.closing)!==0n:(cents(a.debit)!==0n||cents(a.credit)!==0n))))||[]
+ const rows=data?.accounts.filter(a=>(catalog.accounts.find(x=>x.id===a.account_id)?.active!==false||(status?cents(a.closing)!==0n:(cents(a.debit)!==0n||cents(a.credit)!==0n)))&&(!entity||a.entity_id===entity)&&(status?['bank','cash','party']:['income','expense']).includes(a.kind)&&(zero||(status?cents(a.closing)!==0n:(cents(a.debit)!==0n||cents(a.credit)!==0n))))||[]
  const periodValue=(a:Report['accounts'][number])=>decimal(a.kind==='income'?cents(a.credit)-cents(a.debit):cents(a.debit)-cents(a.credit))
  const tableRows=rows.map(a=>[catalog.entities.find(e=>e.id===a.entity_id)?.name||'',catalog.accounts.find(x=>x.id===a.account_id)?.name||'',a.opening,a.debit,a.credit,a.closing])
  return <section className="card"><h2>{status?'สถานะเงิน / ลูกหนี้–เจ้าหนี้':'รายงานรายรับ–รายจ่าย'}</h2><Filters catalog={catalog} from={from} to={to} entity={entity} change={(f,t,e)=>{setFrom(f);setTo(t);setEntity(e);setAccount('')}}/>
