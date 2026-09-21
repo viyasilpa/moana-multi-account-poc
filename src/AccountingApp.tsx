@@ -69,10 +69,11 @@ function AddParty({send}:{send:Send}) {
  return <form onSubmit={async e=>{e.preventDefault();if(await send({action:'add_party',target:'party',name:name.trim()},'accounting_master'))setName('')}}><label>ชื่อบุคคลใหม่<input required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></label><button>เพิ่มบุคคล</button></form>
 }
 
-function Opening({catalog,send,editing,done}:{catalog:Catalog;send:Send;editing?:Row;done?:()=>void}) {
+export function Opening({catalog,send,editing,done}:{catalog:Catalog;send:Send;editing?:Row;done?:()=>void}) {
  const [date,setDate]=useState(editing?.input.date||''),[balances,setBalances]=useState<Record<string,string>>(()=>Object.fromEntries((editing?.input.balances||[]).map(b=>[b.account_id,b.signed_amount])))
  const [reason,setReason]=useState(''),[notice,setNotice]=useState(''),[confirmed,setConfirmed]=useState(false)
  const accounts=catalog.accounts.filter(a=>{
+  if(!a.active)return false
   if(['bank','cash'].includes(a.kind))return true
   if(a.kind!=='party')return false
   const p=catalog.parties.find(p=>p.id===a.party_id)
@@ -82,6 +83,13 @@ function Opening({catalog,send,editing,done}:{catalog:Catalog;send:Send;editing?
   if(editing?.input.balances?.some(b=>b.account_id===mirror?.id))return false
   return catalog.entities.findIndex(e=>e.id===a.entity_id)<catalog.entities.findIndex(e=>e.id===p.related_entity_id)
  })
+ const mirrors=catalog.accounts.filter(a=>a.active&&a.kind==='party'&&!accounts.some(x=>x.id===a.id)).flatMap(a=>{
+  const p=catalog.parties.find(p=>p.id===a.party_id)
+  if(p?.kind!=='related')return []
+  const source=accounts.find(x=>x.entity_id===p.related_entity_id&&catalog.parties.find(q=>q.id===x.party_id)?.related_entity_id===a.entity_id)
+  return source?[{account:a,source}]:[]
+ })
+ function mirroredValue(id:string) {try{return decimal(-cents(balances[id]?.trim()||'0'))}catch{return 'รอยอดที่ถูกต้อง'}}
  async function save(e:React.FormEvent) {
   e.preventDefault();setNotice('')
   try {
@@ -94,7 +102,7 @@ function Opening({catalog,send,editing,done}:{catalog:Catalog;send:Send;editing?
  return <form className="card" onSubmit={save}><h2>{editing?'แก้ไขยอดยกมา':'เริ่มต้นบัญชี — ตั้งยอดยกมา'}</h2><p>กรอกยอดก่อนเริ่มวันบัญชี ช่องว่างถือเป็นศูนย์ · ยังไม่ทราบยอด ให้เว้นการบันทึกไว้ก่อน</p>
   <label>วันเริ่มบัญชี<input type="date" required max={today()} readOnly={!!editing} value={date} onInput={e=>setDate(e.currentTarget.value)} onChange={e=>setDate(e.target.value)}/></label>
   <p>ยอดบุคคล: บวก = เขาค้างเรา / ลบ = เราค้างเขา คู่ระหว่างกิจการกรอกครั้งเดียว ระบบลงฝั่งตรงข้ามให้อัตโนมัติ</p>
-  {catalog.entities.map(entity=><details key={entity.id}><summary>{entity.name}</summary><div className="field-grid">{accounts.filter(a=>a.entity_id===entity.id).map(a=><label key={a.id}>{a.name}<input inputMode="decimal" placeholder="0.00" value={balances[a.id]||''} onChange={e=>setBalances(b=>({...b,[a.id]:e.target.value}))}/></label>)}</div></details>)}
+  {catalog.entities.map(entity=><details key={entity.id}><summary>{entity.name}</summary><div className="field-grid">{accounts.filter(a=>a.entity_id===entity.id).map(a=><label key={a.id}>{a.name}<input inputMode="decimal" placeholder="0.00" value={balances[a.id]||''} onChange={e=>setBalances(b=>({...b,[a.id]:e.target.value}))}/></label>)}{mirrors.filter(m=>m.account.entity_id===entity.id).map(({account,source})=><label key={account.id}>{account.name}<input readOnly value={mirroredValue(source.id)}/><small>คำนวณจาก {catalog.entities.find(e=>e.id===source.entity_id)?.name} · {source.name} แก้ยอดที่ฝั่งนั้นเพียงครั้งเดียว</small></label>)}</div></details>)}
   {editing&&<label>เหตุผลที่แก้ไข<input required maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>}
   <label className="check"><input type="checkbox" required checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>ตรวจสอบวันที่และยอดทุกกิจการแล้ว รวมถึงช่องที่เป็นศูนย์</label>
   <p role="alert">{notice}</p><button>{editing?'บันทึกการแก้ยอดยกมา':'ยืนยันยอดยกมาและเริ่มบัญชี'}</button>
@@ -122,9 +130,9 @@ function EntryForm({catalog,editing,refund,send,done}:{catalog:Catalog;editing:R
   {!isRefund&&<>
    {entry.kind==='expense'&&<label>แหล่งเงิน<select value={entry.funding} onChange={e=>{setEntry(v=>{const n={...v,funding:e.target.value};delete n.money_account_id;return n});setConfirm(false)}}><option value="money">บัญชีธนาคาร / เงินสด</option><option value="pp">PP จ่ายแทนกิจการ</option></select></label>}
    {entry.funding!=='pp'&&<label>บัญชีที่{['income','party_receipt'].includes(entry.kind)?'รับเงิน':'จ่ายเงิน'}<select required value={entry.money_account_id||''} onChange={e=>set('money_account_id',e.target.value)}><option value="">เลือกบัญชีและเจ้าของเงิน</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}</select></label>}
-   {(incomeExpense||party)&&<label>รายการนี้เป็นของกิจการไหน<select required value={entry.for_entity_id||''} onChange={e=>{setEntry(v=>{const n={...v,for_entity_id:e.target.value};delete n.category_account_id;return n});setConfirm(false)}}><option value="">เลือกกิจการเจ้าของรายการ</option>{catalog.entities.filter(e=>e.active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
+   {(incomeExpense||party)&&<label>รายการนี้เป็นของกิจการไหน<select required value={entry.for_entity_id||''} onChange={e=>{setEntry(v=>{const n={...v,for_entity_id:e.target.value};delete n.category_account_id;delete n.party_id;return n});setConfirm(false)}}><option value="">เลือกกิจการเจ้าของรายการ</option>{catalog.entities.filter(e=>e.active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
    {incomeExpense&&<label>หมวด{labels[entry.kind]}<select required value={entry.category_account_id||''} onChange={e=>set('category_account_id',e.target.value)}><option value="">เลือกหมวด</option>{catalog.accounts.filter(a=>a.entity_id===entry.for_entity_id&&a.kind===entry.kind&&a.active).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
-   {party&&<label>บุคคล / ลูกหนี้–เจ้าหนี้<select required value={entry.party_id||''} onChange={e=>set('party_id',e.target.value)}><option value="">เลือกชื่อบุคคล</option>{catalog.parties.filter(p=>p.kind!=='related'&&p.active).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><small>จ่ายแทนหรือให้ยืมเพิ่มลูกหนี้ · รับคืนลดลูกหนี้ · ไม่ใช่รายรับ–รายจ่าย</small></label>}
+   {party&&<label>บุคคล / ลูกหนี้–เจ้าหนี้<select required value={entry.party_id||''} onChange={e=>set('party_id',e.target.value)}><option value="">เลือกชื่อบุคคล</option>{catalog.parties.filter(p=>p.kind!=='related'&&p.active&&catalog.accounts.some(a=>a.entity_id===entry.for_entity_id&&a.party_id===p.id&&a.active)).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><small>จ่ายแทนหรือให้ยืมเพิ่มลูกหนี้ · รับคืนลดลูกหนี้ · ไม่ใช่รายรับ–รายจ่าย</small></label>}
    {entry.kind==='transfer'&&<label>บัญชีปลายทาง<select required value={entry.destination_account_id||''} onChange={e=>set('destination_account_id',e.target.value)}><option value="">เลือกบัญชีรับโอน</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active&&a.id!==entry.money_account_id).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}</select></label>}
   </>}
   {isRefund&&<p>อ้างอิง {entry.source_transaction_id?.slice(0,8)} · คืนผ่านเส้นทางเงินและกิจการเดิม ระบบตรวจยอดคืนสะสม</p>}
