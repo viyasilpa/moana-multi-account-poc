@@ -150,6 +150,12 @@ describe('Stage 4 interaction regression',()=>{
 })
 
 describe('Expense funding choice',()=>{
+ it('keeps a payer selected after one native input event',async()=>{
+  const {api}=fixture();await mount(api)
+  const payer=screen.getByRole('combobox',{name:'จ่ายจาก'})
+  fireEvent.input(payer,{target:{value:'bank'}})
+  expect((payer as HTMLSelectElement).value).toBe('bank')
+ })
  it('selects PP without a bank and clears an earlier bank before submitting',async()=>{
   const user=userEvent.setup(),{api,calls}=fixture()
   const ppApi:Api=async<T,>(name:string,args?:Record<string,unknown>)=>name==='accounting_catalog'?{...structuredClone(catalog),parties:[{id:'pp-party',name:'PP',kind:'pp',related_entity_id:null,active:true}]} as T:api<T>(name,args)

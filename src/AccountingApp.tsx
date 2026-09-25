@@ -114,6 +114,15 @@ function EntryForm({catalog,editing,refund,send,done}:{catalog:Catalog;editing:R
  const [reason,setReason]=useState(''),[error,setError]=useState(''),[confirm,setConfirm]=useState(false)
  if(editing?.kind==='opening')return <Opening catalog={catalog} send={send} editing={editing} done={done}/>
  const set=(key:keyof Entry,value:string)=>{setEntry(e=>({...e,[key]:value}));setConfirm(false)}
+ const setExpensePayer=(value:string)=>{
+  setEntry(current=>{
+   const next={...current,funding:value==='pp'?'pp':'money'}
+   if(value==='pp')delete next.money_account_id
+   else next.money_account_id=value
+   return next
+  })
+  setConfirm(false)
+ }
  const accountName=(id?:string)=>{const a=catalog.accounts.find(a=>a.id===id);return a?`${catalog.entities.find(e=>e.id===a.entity_id)?.name} · ${a.name}`:'ยังไม่เลือก'}
  const incomeExpense=['income','expense'].includes(entry.kind),party=['party_payment','party_receipt'].includes(entry.kind),isRefund=entry.kind==='refund'
  async function submit(e:React.FormEvent) {
@@ -128,7 +137,7 @@ function EntryForm({catalog,editing,refund,send,done}:{catalog:Catalog;editing:R
   <div className="field-grid"><label>ประเภทรายการ<select disabled={!!editing||!!refund} value={entry.kind} onChange={e=>{setEntry({...blank(),kind:e.target.value});setConfirm(false)}}>{Object.entries(labels).filter(([k])=>k!=='opening'&&(k!=='refund'||isRefund)).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
   <label>วันที่<input type="date" required min={catalog.settings.start_date||undefined} max={today()} value={entry.date} onInput={e=>set('date',e.currentTarget.value)} onChange={e=>set('date',e.target.value)}/></label></div>
   {!isRefund&&<>
-   {entry.kind==='expense'&&<label>จ่ายจาก<select aria-label="จ่ายจาก" required value={entry.funding==='pp'?'pp':entry.money_account_id||''} onChange={e=>{const value=e.target.value;setEntry(v=>{const n={...v,funding:value==='pp'?'pp':'money'};if(value==='pp')delete n.money_account_id;else n.money_account_id=value;return n});setConfirm(false)}}><option value="">เลือกบัญชีธนาคาร / เงินสด หรือ PP</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}{catalog.parties.some(p=>p.kind==='pp'&&p.active)&&<option value="pp">PP จ่ายแทนกิจการ</option>}</select>{entry.funding==='pp'&&<small>PP ออกเงินให้ก่อน ระบบบันทึกยอดกับ PP ให้กิจการที่เลือก ไม่ต้องเลือกบัญชีธนาคาร</small>}</label>}
+   {entry.kind==='expense'&&<label>จ่ายจาก<select aria-label="จ่ายจาก" required value={entry.funding==='pp'?'pp':entry.money_account_id||''} onInput={e=>setExpensePayer(e.currentTarget.value)} onChange={e=>setExpensePayer(e.currentTarget.value)}><option value="">เลือกบัญชีธนาคาร / เงินสด หรือ PP</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}{catalog.parties.some(p=>p.kind==='pp'&&p.active)&&<option value="pp">PP จ่ายแทนกิจการ</option>}</select>{entry.funding==='pp'&&<small>PP ออกเงินให้ก่อน ระบบบันทึกยอดกับ PP ให้กิจการที่เลือก ไม่ต้องเลือกบัญชีธนาคาร</small>}</label>}
    {entry.kind!=='expense'&&entry.funding!=='pp'&&<label>บัญชีที่{['income','party_receipt'].includes(entry.kind)?'รับเงิน':'จ่ายเงิน'}<select required value={entry.money_account_id||''} onChange={e=>set('money_account_id',e.target.value)}><option value="">เลือกบัญชีและเจ้าของเงิน</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}</select></label>}
    {(incomeExpense||party)&&<label>รายการนี้เป็นของกิจการไหน<select required value={entry.for_entity_id||''} onChange={e=>{setEntry(v=>{const n={...v,for_entity_id:e.target.value};delete n.category_account_id;delete n.party_id;return n});setConfirm(false)}}><option value="">เลือกกิจการเจ้าของรายการ</option>{catalog.entities.filter(e=>e.active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
    {incomeExpense&&<label>หมวด{labels[entry.kind]}<select required value={entry.category_account_id||''} onChange={e=>set('category_account_id',e.target.value)}><option value="">เลือกหมวด</option>{catalog.accounts.filter(a=>a.entity_id===entry.for_entity_id&&a.kind===entry.kind&&a.active).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
