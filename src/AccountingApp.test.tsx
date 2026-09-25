@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { AccountingApp } from './AccountingApp'
+import { AccountingApp, Reports } from './AccountingApp'
 import {LedgerBackup,MasterSettings} from './LedgerSafety'
 import {tableNames,unpackBackup} from './backup-format'
 import type {Snapshot} from './backup-format'
@@ -174,5 +174,29 @@ describe('Expense funding choice',()=>{
   await fillExpense(user)
   expect(calls[0].entry?.funding).toBe('money')
   expect(calls[0].entry?.money_account_id).toBe('bank')
+ })
+})
+
+describe('Status net balance',()=>{
+ it('shows each entity net of bank, cash and every party balance',async()=>{
+  const statusCatalog:Catalog={...catalog,accounts:[
+   {id:'e1-bank',entity_id:'e1',name:'Bank',kind:'bank',party_id:null,active:true},
+   {id:'e1-cash',entity_id:'e1',name:'Cash',kind:'cash',party_id:null,active:true},
+   {id:'e1-party',entity_id:'e1',name:'PP',kind:'party',party_id:null,active:true},
+   {id:'e2-bank',entity_id:'e2',name:'Bank',kind:'bank',party_id:null,active:true},
+  ]}
+  const statusReport={accounts:[
+   {account_id:'e1-bank',entity_id:'e1',kind:'bank',opening:'0',debit:'100',credit:'0',closing:'100'},
+   {account_id:'e1-cash',entity_id:'e1',kind:'cash',opening:'0',debit:'0',credit:'25',closing:'-25'},
+   {account_id:'e1-party',entity_id:'e1',kind:'party',opening:'0',debit:'0',credit:'40',closing:'-40'},
+   {account_id:'e2-bank',entity_id:'e2',kind:'bank',opening:'0',debit:'10',credit:'0',closing:'10'},
+  ],pnl:[],consolidated:{income:'0',expense:'0',net:'0'}}
+  const api:Api=async<T,>(name:string)=>{if(name==='accounting_report')return statusReport as T;throw new Error('Unexpected RPC '+name)}
+  render(<Reports catalog={statusCatalog} api={api} status/>)
+  await screen.findByText('Demo 1 · ยอดสุทธิ')
+  expect(screen.getByText('35.00')).toBeTruthy()
+  expect(screen.getByText('Demo 2 · ยอดสุทธิ')).toBeTruthy()
+  expect(screen.getAllByText('10.00')).toHaveLength(2)
+  expect(screen.getByText('ยอดสุทธิ = เงินธนาคาร + เงินสด + ลูกหนี้–เจ้าหนี้ทุกคู่ ถึงวันที่เลือก')).toBeTruthy()
  })
 })
