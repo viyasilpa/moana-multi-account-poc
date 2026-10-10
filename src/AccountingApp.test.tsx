@@ -211,7 +211,7 @@ describe('Construction costs',()=>{
  it('stores an explicit cost type independently of the work category',async()=>{
   const user=userEvent.setup(),{api:base,calls}=fixture()
   const c=structuredClone(catalog);c.accounts.find(a=>a.id==='expense')!.name='Construction · Roof'
-  const api:Api=async<T,>(name,args)=>name==='accounting_catalog'?c as T:base<T>(name,args)
+  const api:Api=async<T,>(name:string,args?:Record<string,unknown>)=>name==='accounting_catalog'?c as T:base<T>(name,args)
   await mount(api)
   await user.selectOptions(screen.getByRole('combobox',{name:'จ่ายจาก'}),'bank')
   await user.selectOptions(screen.getByRole('combobox',{name:'รายการนี้เป็นของกิจการไหน'}),'e2')
@@ -226,7 +226,7 @@ describe('Construction costs',()=>{
  })
  it('shows unbudgeted actual without a false variance',async()=>{
   const {api:base}=fixture();const c=structuredClone(catalog);c.entities[0].code='Phruke'
-  const api:Api=async<T,>(name,args)=>name==='accounting_construction_report'?[{name:'Construction · Outside',budget:null,material:'50',labor:'0',combined:'0',unspecified:'0',actual:'50',variance:null,percent:null}] as T:base<T>(name,args)
+  const api:Api=async<T,>(name:string,args?:Record<string,unknown>)=>name==='accounting_construction_report'?[{name:'Construction · Outside',budget:null,material:'50',labor:'0',combined:'0',unspecified:'0',actual:'50',variance:null,percent:null}] as T:base<T>(name,args)
   render(<Reports catalog={c} api={api} status={false}/>);
   await screen.findByText('Outside');expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
   expect(screen.getByRole('link',{name:'ดาวน์โหลด Budget vs Actual CSV'})).toBeTruthy()
