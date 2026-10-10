@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { csvText } from './ledger-format'
 export { cents, money, decimal } from './ledger-format'
-export type Entry = { kind: string; date: string; amount?: string; description?: string; funding?: string; money_account_id?: string; for_entity_id?: string; category_account_id?: string; destination_account_id?: string; party_id?: string; source_transaction_id?: string; balances?: {account_id:string;signed_amount:string}[] }
+export type Entry = { kind: string; date: string; cost_type?: string; amount?: string; description?: string; funding?: string; money_account_id?: string; for_entity_id?: string; category_account_id?: string; destination_account_id?: string; party_id?: string; source_transaction_id?: string; balances?: {account_id:string;signed_amount:string}[] }
 export type Account = {id:string;entity_id:string;name:string;kind:string;party_id:string|null;active:boolean}
 export type Catalog = {settings:{start_date:string|null};entities:{id:string;code:string;name:string;active:boolean}[];accounts:Account[];parties:{id:string;name:string;kind:string;related_entity_id:string|null;active:boolean}[]}
 export type Row = {id:string;kind:string;status:string;current_revision:number;effective_date:string;amount:string|null;input:Entry}

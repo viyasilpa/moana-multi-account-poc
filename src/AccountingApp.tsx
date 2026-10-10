@@ -6,6 +6,7 @@ import {LedgerBackup,MasterSettings,TransactionFiles} from './LedgerSafety'
 
 type Props={userId:string;api?:Api;demo?:boolean}
 type Send=(request:Omit<Command,'key'>,method?:string)=>Promise<boolean>
+const costLabels:Record<string,string>={material:'วัสดุ',labor:'ค่าแรง',combined:'รวมค่าแรงและวัสดุ',unspecified:'ยังไม่ระบุ'}
 const blank=():Entry=>({kind:'expense',date:today(),amount:'',description:'',funding:'money'})
 
 export function AccountingApp({userId,api=liveApi,demo=false}:Props) {
@@ -124,13 +125,15 @@ function EntryForm({catalog,editing,refund,send,done}:{catalog:Catalog;editing:R
   setConfirm(false)
  }
  const accountName=(id?:string)=>{const a=catalog.accounts.find(a=>a.id===id);return a?`${catalog.entities.find(e=>e.id===a.entity_id)?.name} · ${a.name}`:'ยังไม่เลือก'}
+ const construction=entry.kind==='expense'&&catalog.accounts.find(a=>a.id===entry.category_account_id)?.name.startsWith('Construction')===true
  const incomeExpense=['income','expense'].includes(entry.kind),party=['party_payment','party_receipt'].includes(entry.kind),isRefund=entry.kind==='refund'
  async function submit(e:React.FormEvent) {
   e.preventDefault();setError('')
   try {
    if(cents(entry.amount||'')<=0n)throw new Error('จำนวนเงินต้องมากกว่าศูนย์')
    if(!confirm){setConfirm(true);return}
-   if(await send(editing?{action:'edit',transaction_id:editing.id,expected_revision:editing.current_revision,reason,entry}:{action:'create',entry})) {setEntry(blank());setConfirm(false);done()}
+   const savedEntry={...entry};if(!construction)delete savedEntry.cost_type;else savedEntry.cost_type=entry.cost_type||'unspecified';
+   if(await send(editing?{action:'edit',transaction_id:editing.id,expected_revision:editing.current_revision,reason,entry:savedEntry}:{action:'create',entry:savedEntry})) {setEntry(blank());setConfirm(false);done()}
   }catch(error){setError(errorText(error))}
  }
  return <form className="card" onSubmit={submit}><h2>{editing?'แก้ไขรายการ':refund?'คืนเงินรายการเดิม':'ลงรายการ'}</h2>
@@ -139,15 +142,17 @@ function EntryForm({catalog,editing,refund,send,done}:{catalog:Catalog;editing:R
   {!isRefund&&<>
    {entry.kind==='expense'&&<label>จ่ายจาก<select aria-label="จ่ายจาก" required value={entry.funding==='pp'?'pp':entry.money_account_id||''} onInput={e=>setExpensePayer(e.currentTarget.value)} onChange={e=>setExpensePayer(e.currentTarget.value)}><option value="">เลือกบัญชีธนาคาร / เงินสด หรือ PP</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}{catalog.parties.some(p=>p.kind==='pp'&&p.active)&&<option value="pp">PP จ่ายแทนกิจการ</option>}</select>{entry.funding==='pp'&&<small>PP ออกเงินให้ก่อน ระบบบันทึกยอดกับ PP ให้กิจการที่เลือก ไม่ต้องเลือกบัญชีธนาคาร</small>}</label>}
    {entry.kind!=='expense'&&entry.funding!=='pp'&&<label>บัญชีที่{['income','party_receipt'].includes(entry.kind)?'รับเงิน':'จ่ายเงิน'}<select required value={entry.money_account_id||''} onChange={e=>set('money_account_id',e.target.value)}><option value="">เลือกบัญชีและเจ้าของเงิน</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}</select></label>}
-   {(incomeExpense||party)&&<label>รายการนี้เป็นของกิจการไหน<select required value={entry.for_entity_id||''} onChange={e=>{setEntry(v=>{const n={...v,for_entity_id:e.target.value};delete n.category_account_id;delete n.party_id;return n});setConfirm(false)}}><option value="">เลือกกิจการเจ้าของรายการ</option>{catalog.entities.filter(e=>e.active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
+   {(incomeExpense||party)&&<label>รายการนี้เป็นของกิจการไหน<select required value={entry.for_entity_id||''} onChange={e=>{setEntry(v=>{const n={...v,for_entity_id:e.target.value};delete n.category_account_id;delete n.party_id;delete n.cost_type;return n});setConfirm(false)}}><option value="">เลือกกิจการเจ้าของรายการ</option>{catalog.entities.filter(e=>e.active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
    {incomeExpense&&<label>หมวด{labels[entry.kind]}<select required value={entry.category_account_id||''} onChange={e=>set('category_account_id',e.target.value)}><option value="">เลือกหมวด</option>{catalog.accounts.filter(a=>a.entity_id===entry.for_entity_id&&a.kind===entry.kind&&a.active).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
    {party&&<label>บุคคล / ลูกหนี้–เจ้าหนี้<select required value={entry.party_id||''} onChange={e=>set('party_id',e.target.value)}><option value="">เลือกชื่อบุคคล</option>{catalog.parties.filter(p=>p.kind!=='related'&&p.active&&catalog.accounts.some(a=>a.entity_id===entry.for_entity_id&&a.party_id===p.id&&a.active)).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><small>{entry.kind==='party_payment'?'ให้ยืม = ลูกหนี้เพิ่ม · ชำระเจ้าหนี้ = หนี้ลด · หากจ่ายค่าใช้จ่ายแทนกิจการ ให้เลือกประเภทรายจ่าย':'รับคืน = ลูกหนี้ลด · รับเงินยืม = หนี้เพิ่ม · ไม่ใช่รายรับจากกิจการ'}</small></label>}
    {entry.kind==='transfer'&&<label>บัญชีปลายทาง<select required value={entry.destination_account_id||''} onChange={e=>set('destination_account_id',e.target.value)}><option value="">เลือกบัญชีรับโอน</option>{catalog.accounts.filter(a=>['bank','cash'].includes(a.kind)&&a.active&&a.id!==entry.money_account_id).map(a=><option key={a.id} value={a.id}>{accountName(a.id)}</option>)}</select></label>}
   </>}
   {isRefund&&<p>อ้างอิง {entry.source_transaction_id?.slice(0,8)} · คืนผ่านเส้นทางเงินและกิจการเดิม ระบบตรวจยอดคืนสะสม</p>}
+  {construction&&<label>ประเภทต้นทุน<select value={entry.cost_type||'unspecified'} onChange={e=>set('cost_type',e.target.value)}>{Object.entries(costLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select><small>เลือกแยกจากหมวดงาน · รายการเก่ายังไม่ระบุจนกว่าจะแก้เอง</small></label>}
   <label>จำนวนเงิน (บาท)<input required inputMode="decimal" placeholder="0.00" value={entry.amount||''} onChange={e=>set('amount',e.target.value)}/></label>
-  <label>รายละเอียด<input maxLength={500} value={entry.description||''} onChange={e=>set('description',e.target.value)}/></label>
+  <label>รายละเอียด<input maxLength={500} value={entry.description||''} onChange={e=>{const value=e.target.value;setEntry(v=>({...v,description:value,...(construction&&!v.cost_type&&value.trim().startsWith('ค่าแรง')?{cost_type:'labor'}:{})}));setConfirm(false)}}/></label>
   {editing&&<label>เหตุผลที่แก้ไข<input required maxLength={500} value={reason} onChange={e=>{setReason(e.target.value);setConfirm(false)}}/></label>}
+  {construction&&<p>ประเภทต้นทุน: {costLabels[entry.cost_type||'unspecified']}</p>}
   {confirm&&<div className="review"><strong>ตรวจรายการก่อนบันทึก</strong><p>{labels[entry.kind]} · {entry.date} · {money(entry.amount!)} บาท</p>{!isRefund&&<p>{entry.funding==='pp'?'PP':accountName(entry.money_account_id)} → {entry.kind==='transfer'?accountName(entry.destination_account_id):catalog.entities.find(e=>e.id===entry.for_entity_id)?.name}{entry.party_id?' · '+catalog.parties.find(p=>p.id===entry.party_id)?.name:''}</p>}</div>}
   <p role="alert">{error}</p><button>{confirm?'ยืนยันบันทึก':'ตรวจรายการ'}</button>
  </form>
@@ -197,7 +202,7 @@ export function Reports({catalog,api,status}:{catalog:Catalog;api:Api;status:boo
  const statusBalances=status&&!ppView?catalog.entities.filter(e=>entity?e.id===entity:e.active).map(e=>({entity:e,total:(sourceRows||[]).filter(a=>a.entity_id===e.id&&['bank','cash','party'].includes(a.kind)).reduce((sum,a)=>sum+cents(a.closing),0n)})):[]
  const periodValue=(a:Report['accounts'][number])=>decimal(a.kind==='income'?cents(a.credit)-cents(a.debit):cents(a.debit)-cents(a.credit))
  const tableRows=rows.map(a=>[catalog.entities.find(e=>e.id===a.entity_id)?.name||'',ppView?'ลูกหนี้ / เจ้าหนี้ของ PP':catalog.accounts.find(x=>x.id===a.account_id)?.name||'',a.opening,a.debit,a.credit,a.closing])
- return <section className="card"><h2>{status?'สถานะเงิน / ลูกหนี้–เจ้าหนี้':'รายงานรายรับ–รายจ่าย'}</h2><Filters includePP={status} catalog={catalog} from={from} to={to} entity={entity} change={(f,t,e)=>{setFrom(f);setTo(t);setEntity(e);setAccount('')}}/>
+ return <section className="card">{!status&&catalog.entities.some(e=>e.code==='Phruke')&&<ConstructionReport api={api}/>}<h2>{status?'สถานะเงิน / ลูกหนี้–เจ้าหนี้':'รายงานรายรับ–รายจ่าย'}</h2><Filters includePP={status} catalog={catalog} from={from} to={to} entity={entity} change={(f,t,e)=>{setFrom(f);setTo(t);setEntity(e);setAccount('')}}/>
   {status&&<p>{ppView?'มุมมอง PP · บวก = กิจการค้าง PP · ลบ = PP ค้างกิจการ · เฉพาะยอดที่บันทึกในแอปนี้':'ยอดคงเหลือถึงวันที่เลือก · ลูกหนี้เป็นบวก เจ้าหนี้เป็นลบ · คู่ระหว่างกิจการเป็นยอดตรงข้ามกัน ไม่ใช่รายได้'}</p>}
   {!data?<p role="status">{error||'กำลังโหลด…'}</p>:<>
    {ppView&&<div className="summary-grid"><div className="review"><small>ลูกหนี้ของ PP รวม</small><strong>{money(decimal(receivable))}</strong></div><div className="review"><small>เจ้าหนี้ของ PP รวม</small><strong>{money(decimal(payable))}</strong></div></div>}
@@ -216,4 +221,15 @@ function GeneralLedger({account,from,to,api,catalog,ppView=false}:{account:strin
  const data=rawData&&ppView?{...rawData,opening:decimal(-cents(rawData.opening)),closing:decimal(-cents(rawData.closing)),lines:rawData.lines.map(l=>({...l,debit:l.credit,credit:l.debit,balance:decimal(-cents(l.balance))}))}:rawData
  const title=ppView?`PP ↔ ${catalog.entities.find(e=>e.id===catalog.accounts.find(a=>a.id===account)?.entity_id)?.name}`:catalog.accounts.find(a=>a.id===account)?.name
  return <div className="review"><h3>{title} · บัญชีแยกประเภท</h3>{!data?<p>{error||'กำลังโหลด…'}</p>:<><p>ยกมา {money(data.opening)} · คงเหลือ {money(data.closing)}</p><CsvExport name="moana-ledger.csv" label="ดาวน์โหลดบัญชี CSV" rows={[[title||'',from,to],['ยอดยกมา',data.opening],['วันที่','เลขที่','ฉบับ','ประเภท','Dr','Cr','คงเหลือ'],...data.lines.map(l=>[l.date,l.transaction_id,String(l.revision),l.role,l.debit,l.credit,l.balance])]}/><div className="table-scroll"><table><thead><tr><th>วันที่ / รายการ</th><th>Dr</th><th>Cr</th><th>คงเหลือ</th></tr></thead><tbody>{data.lines.map(l=><tr key={l.id}><td><button className="secondary" onClick={()=>setDetail(l.transaction_id)}>{l.date} · {l.transaction_id.slice(0,8)}</button><small>{l.role} · ฉบับ {l.revision}</small></td><td>{money(l.debit)}</td><td>{money(l.credit)}</td><td>{money(l.balance)}</td></tr>)}</tbody></table></div></>}{detail&&<>{ppView&&<p>รายการต้นทางด้านล่างแสดงบัญชีฝั่งกิจการ</p>}<Detail id={detail} catalog={catalog} api={api}/></>}</div>
+}
+
+function ConstructionReport({api}:{api:Api}) {
+ const [to,setTo]=useState(today()),[data,setData]=useState<{name:string;budget:string|null;material:string;labor:string;combined:string;unspecified:string;actual:string;variance:string|null;percent:string|null}[]|null>(null),[error,setError]=useState('')
+ useEffect(()=>{let active=true;setData(null);setError('');api<typeof data>('accounting_construction_report',{p_to:to}).then(d=>{if(active)setData(d)}).catch(e=>{if(active)setError(errorText(e))});return()=>{active=false}},[api,to])
+ const totals=data?.reduce((s,r)=>({budget:s.budget+cents(r.budget||'0'),actual:s.actual+cents(r.actual),material:s.material+cents(r.material),labor:s.labor+cents(r.labor),combined:s.combined+cents(r.combined),unspecified:s.unspecified+cents(r.unspecified),budgetedActual:s.budgetedActual+(r.budget===null?0n:cents(r.actual))}),{budget:0n,actual:0n,material:0n,labor:0n,combined:0n,unspecified:0n,budgetedActual:0n})
+ const headers=['หมวดงาน','Budget รวม','วัสดุจริง','ค่าแรงจริง','รวมค่าแรงและวัสดุ','ยังไม่ระบุประเภท','Actual รวม','งบเหลือ / (เกิน)','ผลต่าง %']
+ const variance=totals?totals.budget-totals.budgetedActual:0n
+ const totalPercent=totals&&totals.budget!==0n?((Number(variance)/Number(totals.budget))*100).toFixed(2):null
+ const exportRows=data?.map(r=>[r.name,r.budget??'—',r.material,r.labor,r.combined,r.unspecified,r.actual,r.variance??'—',r.percent??'—'])||[]
+ return <details open><summary><strong>Phruke · Budget vs Actual งานก่อสร้าง</strong></summary><label>ยอดใช้จริงสะสม ณ วันที่<input type="date" max={today()} value={to} onChange={e=>{if(e.target.value)setTo(e.target.value)}}/></label><p>งบรวมวัสดุและค่าแรง · ยอดจริงหักคืนเงิน · บวก = งบเหลือ / ลบ = เกินงบ · หมวดไม่ตั้งงบแสดงยอดจริงเท่านั้น</p>{!data?<p role="status">{error||'กำลังโหลดต้นทุน…'}</p>:<><CsvExport name={`construction-${to}.csv`} label="ดาวน์โหลด Budget vs Actual CSV" rows={[[ 'Phruke', 'ยอดสะสม ณ',to],headers,...exportRows,...(totals?[[ 'รวม',decimal(totals.budget),decimal(totals.material),decimal(totals.labor),decimal(totals.combined),decimal(totals.unspecified),decimal(totals.actual),decimal(variance),totalPercent||'—']]:[])]}/><div className="table-scroll"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{data.map(r=><tr key={r.name}><td>{r.name.replace('Construction · ','')}</td>{[r.budget,r.material,r.labor,r.combined,r.unspecified,r.actual,r.variance].map((v,i)=><td key={i} className={v&&cents(v)<0n?'negative':''}>{v===null?'—':money(v)}</td>)}<td>{r.percent===null?'—':`${Number(r.percent).toFixed(2)}%`}</td></tr>)}{totals&&<tr><th>รวม</th>{[totals.budget,totals.material,totals.labor,totals.combined,totals.unspecified,totals.actual,variance].map((v,i)=><th key={i}>{money(decimal(v))}</th>)}<th>{totalPercent===null?'—':totalPercent+'%'}</th></tr>}</tbody></table></div><p>ผลต่างรวมเทียบเฉพาะหมวดที่ตั้ง Budget · Actual รวมรวมหมวดไม่ตั้งงบด้วย · งบเหลือยังไม่ใช่เงินประหยัดจนกว่างานจะครบ</p></>}</details>
 }
